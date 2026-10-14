@@ -1,0 +1,135 @@
+{
+  "id": 1470277,
+  "rev": 7,
+  "fields": {
+    "System.Id": 1470277,
+    "System.AreaId": 4606,
+    "System.AreaPath": "Loyalty Kiosk\\Trilogy Cloud Solutions",
+    "System.TeamProject": "Loyalty Kiosk",
+    "System.NodeName": "Trilogy Cloud Solutions",
+    "System.AreaLevel1": "Loyalty Kiosk",
+    "System.AreaLevel2": "Trilogy Cloud Solutions",
+    "System.Rev": 7,
+    "System.AuthorizedDate": "2026-08-28T15:19:00.393Z",
+    "System.RevisedDate": "9999-01-01T00:00:00Z",
+    "System.IterationId": 1109,
+    "System.IterationPath": "Loyalty Kiosk",
+    "System.IterationLevel1": "Loyalty Kiosk",
+    "System.WorkItemType": "User Story",
+    "System.State": "Ready for Development",
+    "System.Reason": "Moved out of state Ready for Refinement",
+    "System.CreatedDate": "2026-08-27T12:46:10.19Z",
+    "System.CreatedBy": {
+      "displayName": "Subramanian, Vinoth",
+      "url": "https://spsprodcus2.vssps.visualstudio.com/A3a1ed253-46ee-4d49-9085-933c986bd364/_apis/Identities/fddc87d9-695e-6bc6-b78c-0f573ed46117",
+      "_links": {
+        "avatar": {
+          "href": "https://dev.azure.com/everi/_apis/GraphProfile/MemberAvatars/aad.ZmRkYzg3ZDktNjk1ZS03YmM2LWI3OGMtMGY1NzNlZDQ2MTE3"
+        }
+      },
+      "id": "fddc87d9-695e-6bc6-b78c-0f573ed46117",
+      "uniqueName": "vinoth.subramanian@everi.com",
+      "imageUrl": "https://dev.azure.com/everi/_apis/GraphProfile/MemberAvatars/aad.ZmRkYzg3ZDktNjk1ZS03YmM2LWI3OGMtMGY1NzNlZDQ2MTE3",
+      "descriptor": "aad.ZmRkYzg3ZDktNjk1ZS03YmM2LWI3OGMtMGY1NzNlZDQ2MTE3"
+    },
+    "System.ChangedDate": "2026-08-28T15:19:00.393Z",
+    "System.ChangedBy": {
+      "displayName": "Polees, Lavina",
+      "url": "https://spsprodcus2.vssps.visualstudio.com/A3a1ed253-46ee-4d49-9085-933c986bd364/_apis/Identities/981d56b6-9f7b-6935-993c-641ed32a2a93",
+      "_links": {
+        "avatar": {
+          "href": "https://dev.azure.com/everi/_apis/GraphProfile/MemberAvatars/aad.OTgxZDU2YjYtOWY3Yi03OTM1LTk5M2MtNjQxZWQzMmEyYTkz"
+        }
+      },
+      "id": "981d56b6-9f7b-6935-993c-641ed32a2a93",
+      "uniqueName": "marina.polees@everi.com",
+      "imageUrl": "https://dev.azure.com/everi/_apis/GraphProfile/MemberAvatars/aad.OTgxZDU2YjYtOWY3Yi03OTM1LTk5M2MtNjQxZWQzMmEyYTkz",
+      "descriptor": "aad.OTgxZDU2YjYtOWY3Yi03OTM1LTk5M2MtNjQxZWQzMmEyYTkz"
+    },
+    "System.AuthorizedAs": {
+      "displayName": "Polees, Lavina",
+      "url": "https://spsprodcus2.vssps.visualstudio.com/A3a1ed253-46ee-4d49-9085-933c986bd364/_apis/Identities/981d56b6-9f7b-6935-993c-641ed32a2a93",
+      "_links": {
+        "avatar": {
+          "href": "https://dev.azure.com/everi/_apis/GraphProfile/MemberAvatars/aad.OTgxZDU2YjYtOWY3Yi03OTM1LTk5M2MtNjQxZWQzMmEyYTkz"
+        }
+      },
+      "id": "981d56b6-9f7b-6935-993c-641ed32a2a93",
+      "uniqueName": "marina.polees@everi.com",
+      "imageUrl": "https://dev.azure.com/everi/_apis/GraphProfile/MemberAvatars/aad.OTgxZDU2YjYtOWY3Yi03OTM1LTk5M2MtNjQxZWQzMmEyYTkz",
+      "descriptor": "aad.OTgxZDU2YjYtOWY3Yi03OTM1LTk5M2MtNjQxZWQzMmEyYTkz"
+    },
+    "System.PersonId": 106549421,
+    "System.Watermark": 10258552,
+    "System.CommentCount": 0,
+    "System.Title": "Allow Mobile Redemption Offer Receipt Retrieval from Vconnect through API (Proxy)",
+    "System.BoardColumn": "Ready for Development",
+    "System.BoardColumnDone": false,
+    "Microsoft.VSTS.Scheduling.StoryPoints": 5.0,
+    "Microsoft.VSTS.Common.StateChangeDate": "2026-08-28T15:17:21.223Z",
+    "Microsoft.VSTS.Common.StackRank": 1999970684.0,
+    "Microsoft.VSTS.Common.ValueArea": "Business",
+    "WEF_042C0C684591478AA68B0BE93153A599_System.ExtensionMarker": true,
+    "WEF_042C0C684591478AA68B0BE93153A599_Kanban.Column": "Ready for Development",
+    "WEF_042C0C684591478AA68B0BE93153A599_Kanban.Column.Done": false,
+    "Custom.DependencyCreatedForProduct": ";",
+    "Custom.2ndTriggerEmailFlag": ";",
+    "Custom.3rdTriggerEmailFlag": ";",
+    "WEF_5AEDB2337275440C8B50D61F5BDFD0CE_System.ExtensionMarker": true,
+    "WEF_5AEDB2337275440C8B50D61F5BDFD0CE_Kanban.Column": "Ready for Development",
+    "WEF_5AEDB2337275440C8B50D61F5BDFD0CE_Kanban.Column.Done": false,
+    "Custom.Demoable": false,
+    "Custom.MergedItem": false,
+    "Custom.LeadershipEscalation": false,
+    "Custom.ApprovedScope": false,
+    "Custom.ScopeCreep": false,
+    "System.Description": "<div><p>As Venetian VConnect,<br>I need to retrieve the receipt associated with a successfully completed mobile offer redemption through a Connector proxy API,<br>so that Venetian Mobile can present the correct receipt without directly integrating with Trilogy. </p><h3>Description </h3><p>Venetian performs offer list, offer detail, and offer redemption through VConnect. After VConnect confirms that a mobile redemption succeeded, VConnect calls an authenticated Connector proxy endpoint to retrieve the corresponding receipt from Trilogy. </p><p>The request contains the property, player, offer/redemption transaction, receipt-template or receipt reference, and correlation information required by the agreed Trilogy contract. </p><p>Connector forwards the request through the approved property integration path, receives the Trilogy receipt response, and returns the agreed result to VConnect. </p><p>When a receipt is generated: </p><ul><li>If email or SMS delivery is not part of the receipt’s configured delivery channels, the generated receipt must enter the existing player-receipt ingestion path. </li><li>If email or SMS delivery is requested, the existing distribute-receipt workflow owns contact handling, notification delivery, and receipt ingestion. </li><li>The same receipt must not be ingested twice when the proxy and distribution paths are involved. </li> </ul><p>This endpoint retrieves the receipt after redemption. It does not perform the initial offer redemption. </p><br> </div>",
+    "System.History": "",
+    "Microsoft.VSTS.Common.AcceptanceCriteria": "<div><p><strong>AC1 — Accept an authorized VConnect request</strong> </p><ul><li>Connector exposes an authenticated proxy endpoint for approved VConnect integrations. </li><li>The request identifies the correct property, player, offer, successful redemption transaction, and required receipt reference. </li><li>Requests are restricted to enabled tenants and service endpoints. </li><li>An unauthorized application or disabled tenant cannot call the endpoint. </li> </ul><p><strong>AC2 — Require a successful redemption</strong> </p><ul><li>Receipt retrieval is initiated only for a redemption that VConnect reports as successfully completed. </li><li>A failed or incomplete redemption does not generate or return a receipt. </li><li>A missing or invalid redemption transaction reference is rejected. </li><li>The proxy does not execute the original offer redemption a second time. </li> </ul><p><strong>AC3 — Correlate the correct receipt</strong> </p><ul><li>Connector forwards the identifiers required for Trilogy to locate or generate the receipt for the successful redemption. </li><li>The returned receipt belongs to the requested property, player, offer, and redemption transaction. </li><li>A receipt from another player, property, or redemption is never returned. </li><li>Each returned individual receipt has a stable Receipt ID. </li> </ul><p><strong>AC4 — Proxy the request through the approved integration path</strong> </p><ul><li>Connector sends the request through the approved Trilogy/property communication path. </li><li>VConnect does not require direct connectivity to Trilogy. </li><li>Request and response correlation identifiers are preserved across VConnect, Connector, and Trilogy. </li><li>Connector does not alter receipt content returned under the agreed contract. </li> </ul><p><strong>AC5 — Return a usable receipt result</strong> </p><ul><li>A successful response provides the Receipt ID and the agreed receipt or retrieval information needed by VConnect. </li><li>The result identifies the associated redemption transaction. </li><li>Any Receipt URL, status, expiration, or display metadata returned is consistent with the record stored in Loyalty Cloud. </li><li>VConnect can use the returned reference to obtain the matching receipt without searching through unrelated player receipts. </li> </ul><p><strong>AC6 — Ingest receipts without email or SMS delivery</strong> </p><ul><li>When the receipt has no email or SMS delivery channel, the generated receipt is submitted through the existing player-receipt ingestion contract. </li><li>The ingested record contains the complete generated HTML and required metadata defined by User Story 1445168. </li><li>The receipt becomes available to the applicable storage and mobile-retrieval workflows. </li><li>Ingestion failure is not incorrectly reported as successful completion of the complete receipt workflow. </li> </ul><p><strong>AC7 — Avoid duplicate ingestion</strong> </p><ul><li>When email or SMS delivery is requested, the existing distribute-receipt workflow owns receipt ingestion. </li><li>The proxy does not independently create a second stored record for the same receipt. </li><li>Retries use the same redemption transaction and Receipt ID. </li><li>A retry does not cause a second redemption, receipt, or Receipt URL. </li> </ul><p><strong>AC8 — Handle one or more legitimate receipts safely</strong> </p><ul><li>Each legitimate receipt returned for the redemption has its own Receipt ID. </li><li>Multiple legitimate receipts are not incorrectly combined. </li><li>Repeated copies of the same receipt are not returned or stored as separate receipts. </li><li>The initial Venetian workflow may return one receipt, while the contract must not prevent the existing platform model from representing multiple legitimate receipts. </li> </ul><p><strong>AC9 — Handle downstream failures</strong> </p><ul><li>Trilogy timeout, unavailability, validation failure, and not-found conditions are mapped to the approved Connector API error format. </li><li>Connector does not return a successful receipt response when Trilogy did not produce or locate the receipt. </li><li>Errors include safe correlation information for troubleshooting. </li><li>Errors do not expose another player’s receipt data or internal implementation details. </li> </ul><p><strong>AC10 — Protect sensitive data</strong> </p><ul><li>Property and player authorization is validated before receipt information is returned. </li><li>Receipt HTML, contact information, and player information are not unnecessarily written to logs. </li><li>The response contains only the information approved for VConnect. </li><li>Cross-property or cross-player access is rejected. </li> </ul><h3>Dependencies and boundaries </h3><ul><li><strong>Depends on:</strong> VConnect successfully completing the original offer redemption and supplying the required correlation/reference data. </li><li><strong>Uses:</strong> Existing Trilogy Redeem Offer Receipt capability. </li><li><strong>Uses:</strong> 1445168 and 1365562 when the generated receipt must be ingested and stored. </li><li><strong>May feed:</strong> 1470260 and 1445171 after storage. </li><li><strong>Distinct from 1459617:</strong> This is the VConnect proxy retrieval flow; 1459617 is the BeOn post-redemption availability signal/callback. </li><li><strong>Out of scope:</strong> Offer list, offer detail, original redemption, mobile UI, receipt-list presentation, receipt HTML rendering, and direct notification delivery. </li> </ul><br> </div>",
+    "System.Parent": 1320913
+  },
+  "multilineFieldsFormat": {
+    "System.Description": "html",
+    "System.History": "html",
+    "Microsoft.VSTS.Common.AcceptanceCriteria": "html"
+  },
+  "relations": [
+    {
+      "rel": "System.LinkTypes.Hierarchy-Reverse",
+      "url": "https://dev.azure.com/everi/aafec7f9-7b77-45d6-ad82-724bf2cc2417/_apis/wit/workItems/1320913",
+      "attributes": {
+        "isLocked": false,
+        "name": "Parent"
+      }
+    }
+  ],
+  "commentVersionRef": {
+    "commentId": 13521982,
+    "version": 2,
+    "url": "https://dev.azure.com/everi/aafec7f9-7b77-45d6-ad82-724bf2cc2417/_apis/wit/workItems/1470277/comments/13521982/versions/2"
+  },
+  "_links": {
+    "self": {
+      "href": "https://dev.azure.com/everi/aafec7f9-7b77-45d6-ad82-724bf2cc2417/_apis/wit/workItems/1470277"
+    },
+    "workItemUpdates": {
+      "href": "https://dev.azure.com/everi/aafec7f9-7b77-45d6-ad82-724bf2cc2417/_apis/wit/workItems/1470277/updates"
+    },
+    "workItemRevisions": {
+      "href": "https://dev.azure.com/everi/aafec7f9-7b77-45d6-ad82-724bf2cc2417/_apis/wit/workItems/1470277/revisions"
+    },
+    "workItemComments": {
+      "href": "https://dev.azure.com/everi/aafec7f9-7b77-45d6-ad82-724bf2cc2417/_apis/wit/workItems/1470277/comments"
+    },
+    "html": {
+      "href": "https://dev.azure.com/everi/aafec7f9-7b77-45d6-ad82-724bf2cc2417/_workitems/edit/1470277"
+    },
+    "workItemType": {
+      "href": "https://dev.azure.com/everi/aafec7f9-7b77-45d6-ad82-724bf2cc2417/_apis/wit/workItemTypes/User%20Story"
+    },
+    "fields": {
+      "href": "https://dev.azure.com/everi/aafec7f9-7b77-45d6-ad82-724bf2cc2417/_apis/wit/fields"
+    }
+  },
+  "url": "https://dev.azure.com/everi/aafec7f9-7b77-45d6-ad82-724bf2cc2417/_apis/wit/workItems/1470277"
+}

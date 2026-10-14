@@ -1,0 +1,161 @@
+{
+  "config": {
+    "argv": [
+      "/Users/anandasriram/.nvm/versions/node/v22.22.3/bin/node",
+      "/Users/anandasriram/Desktop/gem automation/ui/artifacts/node_modules/@playwright/test/cli.js",
+      "test",
+      "--config=gamification.playwright.config.ts"
+    ],
+    "configFile": "/Users/anandasriram/Desktop/gem automation/ui/artifacts/gamification.playwright.config.ts",
+    "rootDir": "/Users/anandasriram/Desktop/gem automation/ui/artifacts/tests/specs",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/anandasriram/Desktop/gem automation/ui/artifacts/gamification-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/Users/anandasriram/Desktop/gem automation/ui/artifacts/tests/specs",
+        "testIgnore": [],
+        "testMatch": [
+          "gamification-create.spec.ts"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "gamification-playwright-report",
+          "open": "never"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "gamification-test-results/results.json"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "gamification-test-results/junit.xml"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 4,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "gamification-create.spec.ts",
+      "file": "gamification-create.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "create a gamification game with two prizes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 12434,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "steps": [
+                    {
+                      "title": "Sign in and reach the dashboard",
+                      "duration": 8970
+                    },
+                    {
+                      "title": "Open GEM Gamification and start a new game",
+                      "duration": 1973
+                    },
+                    {
+                      "title": "Configure and validate two prizes",
+                      "duration": 258
+                    },
+                    {
+                      "title": "Verify prize removal and count update",
+                      "duration": 188
+                    },
+                    {
+                      "title": "Save and verify the game in the listing",
+                      "duration": 670
+                    }
+                  ],
+                  "startTime": "2026-10-13T10:26:47.955Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/Users/anandasriram/Desktop/gem automation/ui/artifacts/gamification-test-results/gamification-create-create-94569-cation-game-with-two-prizes/video.webm"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ff5bc32ddb4ffadbc578-aa5d5caf43b71c20c1aa",
+          "file": "gamification-create.spec.ts",
+          "line": 4,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-13T10:26:47.460Z",
+    "duration": 13370.701000000001,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

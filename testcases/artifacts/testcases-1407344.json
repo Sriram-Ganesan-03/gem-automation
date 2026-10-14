@@ -1,0 +1,4431 @@
+{
+  "authoring_phase": "development",
+  "story": {
+    "id": 1407344,
+    "title": "TGO – Tenant Onboarding Workflow and Lifecycle Refactor",
+    "state": "In Development",
+    "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions",
+    "iteration_path": "Loyalty Kiosk\\Sprint 174 - Ending 10.6.2026"
+  },
+  "requirements": [
+    {
+      "req_id": "REQ-001",
+      "source": "[Work Item AC] AC1",
+      "text": "Tenant onboarding uses workflow/tab navigation containing (1) Tenant Information and (2) Regions/Sites."
+    },
+    {
+      "req_id": "REQ-002",
+      "source": "[Work Item AC] AC2",
+      "text": "Save & Next functionality works correctly (persists current step and advances to the next step)."
+    },
+    {
+      "req_id": "REQ-003",
+      "source": "[Work Item AC] AC3",
+      "text": "Tenant initially saves in Pending state and does not become Active immediately."
+    },
+    {
+      "req_id": "REQ-004",
+      "source": "[Work Item AC] AC4",
+      "text": "Tenant transitions to Active after onboarding completion."
+    },
+    {
+      "req_id": "REQ-005",
+      "source": "[Work Item AC] AC5",
+      "text": "Users can continue onboarding later (return to a Pending tenant and resume)."
+    },
+    {
+      "req_id": "REQ-006",
+      "source": "[Work Item AC] AC6",
+      "text": "Existing Tenants remain unaffected / functional after deployment."
+    },
+    {
+      "req_id": "REQ-007",
+      "source": "[Work Item AC] AC7",
+      "text": "Region/Site management is accessible within the onboarding flow."
+    },
+    {
+      "req_id": "REQ-008",
+      "source": "Description - Tenant Information Section",
+      "text": "Tenant Information section contains Tenant Name, Tenant Description, Trilogy Go Domain, consistent with current onboarding fields."
+    },
+    {
+      "req_id": "REQ-009",
+      "source": "Description - Tenant Lifecycle Management / Validation",
+      "text": "Tenant becomes Active only after required onboarding steps are completed and Region/Site configuration requirements are satisfied; incomplete onboarding shall not activate the Tenant."
+    },
+    {
+      "req_id": "REQ-010",
+      "source": "Description - Validation",
+      "text": "Users shall not bypass required onboarding steps."
+    },
+    {
+      "req_id": "REQ-011",
+      "source": "Description - Validation",
+      "text": "Tenant onboarding progress shall persist between sessions."
+    },
+    {
+      "req_id": "REQ-012",
+      "source": "Description - Navigation Refactor",
+      "text": "Region management and Site management are consolidated under the Tenant onboarding experience instead of disconnected pages."
+    },
+    {
+      "req_id": "REQ-013",
+      "source": "Description - UI/UX Workflow Navigation",
+      "text": "Onboarding visually guides the user through Tenant setup, Region setup and Site setup."
+    },
+    {
+      "req_id": "REQ-014",
+      "source": "Description - UI/UX Component Reuse",
+      "text": "Existing Trilogy workflow/tab patterns are reused instead of new onboarding components."
+    },
+    {
+      "req_id": "REQ-015",
+      "source": "Successor #1411893",
+      "text": "Sites must always belong to a Region; orphan Sites shall not exist."
+    },
+    {
+      "req_id": "REQ-016",
+      "source": "Successor #1411893",
+      "text": "Duplicate Region names within the same Tenant shall not be allowed."
+    },
+    {
+      "req_id": "REQ-017",
+      "source": "Successor #1411893",
+      "text": "Region contains Region Name, Trilogy Base URL/domain, Region Description; empty state message and Add Region action are shown when no Regions exist; nested Region/Site grid with expand/collapse."
+    },
+    {
+      "req_id": "REQ-018",
+      "source": "Parent #1375449 (sibling US 1411909 Migration Support)",
+      "text": "Existing Tenants/Sites migrate to the Region architecture: existing Site mappings, Trilogy Base URL relationships and active Tenants preserved; no orphan Sites."
+    },
+    {
+      "req_id": "REQ-019",
+      "source": "Parent #1375449 (sibling US 1411910 Permissions)",
+      "text": "Users with only View TGO Settings can view Tenant onboarding details and Region/Site hierarchy but cannot modify onboarding configuration, Regions or Sites."
+    },
+    {
+      "req_id": "REQ-020",
+      "source": "Wiki: Automation/TCS-Functional-Items/TGO/Connector-Configuration-and-Tenant-Onboarding",
+      "text": "An already existing Tenant cannot be created again."
+    },
+    {
+      "req_id": "REQ-021",
+      "source": "Wiki (Tenants tab + icon) / sibling US 1411909 (/tgo routing)",
+      "text": "Onboarding is launched from TGO (/tgo) > Tenants > + icon."
+    },
+    {
+      "req_id": "REQ-022",
+      "source": "Wiki: Connector-Configuration-and-Tenant-Onboarding (Trilogy System > Tenant > Onboard)",
+      "text": "Tenants created in TGO are onboarded from the Trilogy platform (System > Tenant > Search by Trilogy Domain + Trilogy Go Domain > Onboard > Check Connectivity)."
+    }
+  ],
+  "analysis": {
+    "business_rules": [
+      "BR1: A newly created tenant is Pending, never Active on creation (REQ-003).",
+      "BR2: Pending -> Active only when Tenant Information is complete AND Region/Site requirements are satisfied (REQ-004, REQ-009).",
+      "BR3: Required steps cannot be bypassed (REQ-010).",
+      "BR4: Onboarding progress persists between sessions and can be resumed (REQ-005, REQ-011).",
+      "BR5: Existing tenants keep functioning and are not moved back to Pending (REQ-006, REQ-018).",
+      "BR6: Sites always belong to a Region; Region names are unique per tenant (REQ-015, REQ-016).",
+      "BR7: A tenant that already exists cannot be created again (REQ-020)."
+    ],
+    "functional_requirements": [
+      "Workflow/tab navigation: Tenant Information -> Regions/Sites (REQ-001).",
+      "Save & Next per step (REQ-002).",
+      "Tenant lifecycle Pending/Active (REQ-003, REQ-004, REQ-009).",
+      "Resume onboarding later (REQ-005).",
+      "Region/Site management inside onboarding (REQ-007, REQ-012, REQ-015..REQ-017).",
+      "Tenant Information fields (REQ-008)."
+    ],
+    "non_functional_requirements": [
+      "Usability: guided step indicator, reuse of Trilogy tab patterns (REQ-013, REQ-014).",
+      "Reliability/Recovery: no duplicate or partial tenants on failure/double submit (REQ-002).",
+      "Security: no bypass through deep links or API; read-only permission enforcement (REQ-010, REQ-019).",
+      "Backward compatibility: migration of existing tenants (REQ-006, REQ-018).",
+      "No performance NFR stated (see Missing Requirements)."
+    ],
+    "dependencies": [
+      "Successor US 1411893 (Hierarchical Region and Site Management, Dev Review) - provides the nested Region/Site grid, Region/Site modals and validations used by the Regions/Sites step.",
+      "Sibling US 1411909 (Region Architecture, Backend and Migration, Closed) - lifecycle state storage, Region entity, migration of existing tenants, /tgo routing.",
+      "Sibling US 1411910 (Permissions and Access, Ready for Development) - View TGO Settings permission; REQ-019 cases are blocked until it is delivered.",
+      "Trilogy platform tenant onboarding (System > Tenant) consumes TGO tenants (wiki).",
+      "PR 185578 linked to the story (not reviewed - artifact link only)."
+    ],
+    "constraints": [
+      "Story is In Development; live UI exploration disabled - exact labels (tab names, button text, status labels, messages) must be confirmed against the build.",
+      "Task children 1471705, 1488339, 1488340, 1488342 skipped per policy; their titles indicate a Wizard mode for creation and a Non-Wizard mode for updating a tenant.",
+      "Full Region/Site CRUD, reassignment and deletion rules are owned by US 1411893 and only exercised here as far as onboarding needs."
+    ],
+    "assumptions": [
+      "A1: Completing onboarding requires at least one Region with at least one Site (AC does not define the minimum).",
+      "A2: Regions/Sites step is not reachable for a brand-new tenant until Tenant Information is saved.",
+      "A3: Editing an existing tenant uses a non-wizard mode (free tab navigation) - from Task 1488342 title.",
+      "A4: Activation happens automatically on completion of the last required step (or via an explicit Complete/Finish action if present).",
+      "A5: Field limits/format rules for Tenant Name and Trilogy Go Domain are those of the current Add Tenant form."
+    ],
+    "test_conditions": [
+      {
+        "id": "TCOND-001",
+        "req_id": "REQ-001",
+        "text": "Onboarding opens as an ordered tab/workflow with Tenant Information then Regions/Sites.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-002",
+        "req_id": "REQ-002",
+        "text": "Save & Next saves the step data exactly once and advances; failures keep the user on the step with data retained.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-003",
+        "req_id": "REQ-003",
+        "text": "First save of a new tenant creates it with status Pending (UI + persistence).",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-004",
+        "req_id": "REQ-004",
+        "text": "Pending -> Active only after all required steps and Region/Site requirements are complete.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-005",
+        "req_id": "REQ-005",
+        "text": "A Pending tenant can be re-opened and resumed at the next incomplete step with saved data prefilled.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-006",
+        "req_id": "REQ-006",
+        "text": "Pre-existing tenants keep Active status, sites, settings and connectivity after deployment and after edits.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-007",
+        "req_id": "REQ-007",
+        "text": "Regions and Sites can be created/viewed from the Regions/Sites step of onboarding.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-008",
+        "req_id": "REQ-008",
+        "text": "Tenant Information fields exist and validate consistently with the existing Add Tenant form.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-009",
+        "req_id": "REQ-009",
+        "text": "Every incomplete combination of steps leaves the tenant Pending.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-010",
+        "req_id": "REQ-010",
+        "text": "Later steps/activation cannot be reached through UI, deep link, or direct API before required steps are done.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-011",
+        "req_id": "REQ-011",
+        "text": "Saved progress survives logout/login, browser change, refresh and session timeout.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-012",
+        "req_id": "REQ-012",
+        "text": "Region/Site management is reached through the tenant, not via a disconnected page.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-013",
+        "req_id": "REQ-013",
+        "text": "A visible progress indicator shows current/completed steps.",
+        "risk_rating": "Low"
+      },
+      {
+        "id": "TCOND-014",
+        "req_id": "REQ-014",
+        "text": "Workflow tabs look and behave like existing Trilogy tab patterns.",
+        "risk_rating": "Low"
+      },
+      {
+        "id": "TCOND-015",
+        "req_id": "REQ-015",
+        "text": "Site creation inside onboarding requires a Region.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-016",
+        "req_id": "REQ-016",
+        "text": "Region name uniqueness is enforced per tenant during onboarding.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-017",
+        "req_id": "REQ-017",
+        "text": "Regions/Sites step shows empty state, Region modal fields and nested grid.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-018",
+        "req_id": "REQ-018",
+        "text": "Post-deployment data for existing tenants is intact and hierarchical.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-019",
+        "req_id": "REQ-019",
+        "text": "Read-only users see onboarding read-only; writes are blocked in UI and API.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-020",
+        "req_id": "REQ-020",
+        "text": "Duplicate tenant creation is rejected in the new workflow.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-021",
+        "req_id": "REQ-021",
+        "text": "The Add Tenant entry point opens the new workflow.",
+        "risk_rating": "Low"
+      },
+      {
+        "id": "TCOND-022",
+        "req_id": "REQ-022",
+        "text": "Downstream Trilogy onboarding/connectivity works for new (completed) and existing tenants; Pending handling is defined.",
+        "risk_rating": "High"
+      }
+    ]
+  },
+  "test_cases": [
+    {
+      "test_case_id": "TC-001",
+      "title": "TGO - AC1 - Add Tenant Opens Workflow With Ordered Tabs",
+      "scenario": "AC1 - Add Tenant Opens Workflow With Ordered Tabs",
+      "test_condition": "Onboarding opens as a tab/workflow with Tenant Information first and Regions/Sites second",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "N/A",
+      "req_ids": [
+        "REQ-001",
+        "REQ-021"
+      ],
+      "source": "[Work Item AC] AC1",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Observe the workflow header/tab bar",
+          "expected_result": "Tenant Onboarding workflow opens (not the old single Add Tenant form). Tabs appear in order: 1) Tenant Information, 2) Regions/Sites. Tenant Information is the active tab and its fields are empty."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-002",
+      "title": "TGO - AC1 - Step Indicator Shows Tenant Region Site Progress",
+      "scenario": "AC1 - Step Indicator Shows Tenant Region Site Progress",
+      "test_condition": "Workflow visually guides the user through Tenant, Region and Site setup",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Usability",
+      "priority": 3,
+      "severity": "Low",
+      "risk_rating": "Low",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com; Region Name: QA_Region_East; Trilogy Base URL: loyalty-atm-a02.purplecheckpoint.com; Region Description: QA east region; Site: QA_Site_01 with the existing mandatory Site fields populated per the current Site form",
+      "req_ids": [
+        "REQ-013",
+        "REQ-001"
+      ],
+      "source": "Description - UI/UX Workflow Navigation",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Note the step indicator state",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Enter Tenant Name, Tenant Description and Trilogy Go Domain from Test Data and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Note the step indicator state",
+          "expected_result": ""
+        },
+        {
+          "index": 7,
+          "action": "Add a Region and a Site under it from Test Data",
+          "expected_result": ""
+        },
+        {
+          "index": 8,
+          "action": "Note the step indicator state",
+          "expected_result": "Indicator always highlights the current step (Tenant setup -> Region setup -> Site setup) and marks completed steps as done; it never shows a later step as complete before its data is saved."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-003",
+      "title": "TGO - AC1 - Regions Sites Tab Locked Before Tenant Information Saved",
+      "scenario": "AC1 - Regions Sites Tab Locked Before Tenant Information Saved",
+      "test_condition": "Regions/Sites step cannot be opened for a new tenant before Tenant Information is saved",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-001",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC1",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Without entering data click the 'Regions/Sites' tab",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Enter Tenant Name, Tenant Description and Trilogy Go Domain from Test Data but do NOT click Save & Next",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Click the 'Regions/Sites' tab again",
+          "expected_result": "Regions/Sites tab is disabled or shows a message to complete Tenant Information first; the user stays on Tenant Information; no tenant is created in the Tenants list."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-004",
+      "title": "TGO - Entry Point - Tenants Plus Icon Under /tgo",
+      "scenario": "Entry Point - Tenants Plus Icon Under /tgo",
+      "test_condition": "Add Tenant entry point under /tgo launches the new onboarding workflow",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Low",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants (list).",
+      "test_data": "URL: https://trilogy-go-qa01.purplecheckpoint.com/tgo",
+      "req_ids": [
+        "REQ-021"
+      ],
+      "source": "Wiki (Tenants tab + icon) / sibling US 1411909 (/tgo routing)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Check the browser URL",
+          "expected_result": "Tenants list loads under /tgo; '+' opens the Tenant Onboarding workflow on the Tenant Information tab and the URL stays under the /tgo route."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-005",
+      "title": "TGO - UI Consistency - Workflow Reuses Trilogy Tab Pattern",
+      "scenario": "UI Consistency - Workflow Reuses Trilogy Tab Pattern",
+      "test_condition": "Workflow tabs reuse the existing Trilogy workflow/tab pattern",
+      "type": "Positive",
+      "test_level": "UAT",
+      "technique": "Exploratory",
+      "category": "Usability",
+      "priority": 4,
+      "severity": "Low",
+      "risk_rating": "Low",
+      "automation_feasibility": "Not Feasible",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab. An existing Trilogy/TGO tabbed page is available for comparison (e.g. TGO Settings under Admin Configuration).",
+      "test_data": "N/A",
+      "req_ids": [
+        "REQ-014"
+      ],
+      "source": "Description - UI/UX Component Reuse",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Compare tab styling, active/inactive states, button placement and spacing with the existing tabbed page",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Resize the browser to 1366x768 and 1920x1080",
+          "expected_result": "Onboarding tabs use the same look and behaviour as the existing Trilogy tab component (styles, active indicator, button placement); no clipped or overlapping elements at both resolutions."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-006",
+      "title": "TGO - Accessibility - Keyboard Navigation Through Workflow",
+      "scenario": "Accessibility - Keyboard Navigation Through Workflow",
+      "test_condition": "Workflow tabs, fields and Save & Next are keyboard operable with correct focus order",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "Exploratory",
+      "category": "Accessibility",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Low",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab. Screen reader (NVDA) available.",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-001",
+        "REQ-013"
+      ],
+      "source": "[Work Item AC] AC1",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Using only Tab/Shift+Tab move through the tabs, Tenant Name, Tenant Description, Trilogy Go Domain and Save & Next",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Fill the fields from Test Data with the keyboard and press Enter/Space on 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "With NVDA running, move focus to the tab bar",
+          "expected_result": "Focus order follows the visual order with a visible focus ring; Save & Next works from the keyboard and moves focus to the Regions/Sites step; the screen reader announces field labels, required state and the active tab/step."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-007",
+      "title": "TGO - Tenant Information - Fields Present And Consistent",
+      "scenario": "Tenant Information - Fields Present And Consistent",
+      "test_condition": "Tenant Information shows Tenant Name, Tenant Description and Trilogy Go Domain consistent with the existing form",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab. Screenshot of the pre-deployment Add Tenant form available for comparison.",
+      "test_data": "N/A",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "Description - Tenant Information Section",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Inspect the Tenant Information tab fields, labels and required markers",
+          "expected_result": "Exactly the fields Tenant Name, Tenant Description and Trilogy Go Domain are shown with labels, placeholders and required markers matching the pre-deployment Add Tenant form; no Region/Site fields are on this tab."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-008",
+      "title": "TGO - Tenant Information - Blank Tenant Name Rejected",
+      "scenario": "Tenant Information - Blank Tenant Name Rejected",
+      "test_condition": "Save & Next is blocked when Tenant Name is empty",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: <blank>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-008",
+        "REQ-002"
+      ],
+      "source": "Description - Tenant Information Section",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Leave Tenant Name empty and fill the other fields from Test Data",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Click 'Save & Next'",
+          "expected_result": "Inline required-field validation is shown on Tenant Name; user stays on Tenant Information; no tenant (Pending or otherwise) is created in the Tenants list."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-009",
+      "title": "TGO - Tenant Information - Blank Trilogy Go Domain Rejected",
+      "scenario": "Tenant Information - Blank Trilogy Go Domain Rejected",
+      "test_condition": "Save & Next is blocked when Trilogy Go Domain is empty",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: <blank>",
+      "req_ids": [
+        "REQ-008",
+        "REQ-002"
+      ],
+      "source": "Description - Tenant Information Section",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Fill Tenant Name and Description, leave Trilogy Go Domain empty",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Click 'Save & Next'",
+          "expected_result": "Required-field validation is shown on Trilogy Go Domain; user stays on Tenant Information; no tenant is created."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-010",
+      "title": "TGO - Tenant Information - Invalid Trilogy Go Domain Formats",
+      "scenario": "Tenant Information - Invalid Trilogy Go Domain Formats",
+      "test_condition": "Trilogy Go Domain rejects malformed values with the same rules as the existing form",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Trilogy Go Domain values: (a) 'trilogy go qa01' (spaces) (b) 'trilogy-go-qa01..purplecheckpoint.com' (c) 'ftp://trilogy-go-qa01.purplecheckpoint.com' (d) 'https://trilogy-go-qa01.purplecheckpoint.com/' (protocol + trailing slash)",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "Description - Tenant Information Section",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter a valid Tenant Name and Description",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Enter value (a) in Trilogy Go Domain and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Repeat step 5 for values (b), (c) and (d)",
+          "expected_result": "Values (a)-(c) are rejected with a format validation message and no tenant is created; value (d) is either normalised to the bare domain or rejected exactly as the pre-deployment Add Tenant form did (record behaviour); no malformed domain is persisted."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-011",
+      "title": "TGO - Tenant Information - Tenant Name Length Boundaries",
+      "scenario": "Tenant Information - Tenant Name Length Boundaries",
+      "test_condition": "Tenant Name accepts max length and rejects max+1",
+      "type": "Boundary",
+      "test_level": "System",
+      "technique": "BVA",
+      "category": "Functional",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab. Max length N of Tenant Name taken from the existing Add Tenant form / API contract.",
+      "test_data": "Tenant Name lengths: 1, N-1, N, N+1 characters; other fields per Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "Description - Tenant Information Section",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter a 1-character Tenant Name with valid other fields and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Create another tenant with an N-character name",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Try another tenant with an N+1-character name",
+          "expected_result": "Names of length 1 and N are saved as Pending tenants and shown untruncated in the Tenants list and workflow header; N+1 is blocked (maxlength or validation message) and not persisted."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-012",
+      "title": "TGO - Tenant Information - Whitespace Only And Padded Names",
+      "scenario": "Tenant Information - Whitespace Only And Padded Names",
+      "test_condition": "Whitespace-only names are rejected and surrounding spaces are trimmed",
+      "type": "Boundary",
+      "test_level": "System",
+      "technique": "BVA",
+      "category": "Functional",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: '   ' (3 spaces); then '  QA_TGO_Pad_<yyyyMMddHHmm>  '",
+      "req_ids": [
+        "REQ-008",
+        "REQ-020"
+      ],
+      "source": "Description - Tenant Information Section",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter Tenant Name of only spaces with valid other fields and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Change Tenant Name to the padded value and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Open the Tenants list and search the name",
+          "expected_result": "Whitespace-only name is rejected as empty; padded name is saved trimmed ('QA_TGO_Pad_<...>') with status Pending."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-013",
+      "title": "TGO - Tenant Information - Tenant Description Optional And Long",
+      "scenario": "Tenant Information - Tenant Description Optional And Long",
+      "test_condition": "Tenant Description empty and long values behave per the existing form",
+      "type": "Boundary",
+      "test_level": "System",
+      "technique": "BVA",
+      "category": "Functional",
+      "priority": 4,
+      "severity": "Low",
+      "risk_rating": "Low",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Description: <blank>; then 500+ character text with line breaks and special characters (& < > \" ')",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "Description - Tenant Information Section",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Fill Tenant Name and Trilogy Go Domain, leave Tenant Description blank and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Return to Tenant Information and enter the long description, click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Re-open Tenant Information",
+          "expected_result": "Blank description is accepted if optional in the existing form (else a required message is shown); the long description is saved up to the field limit (limit enforced, no silent truncation) and special characters display exactly as entered."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-014",
+      "title": "TGO - Duplicate Tenant - Existing Tenant Name Rejected",
+      "scenario": "Duplicate Tenant - Existing Tenant Name Rejected",
+      "test_condition": "A tenant that already exists cannot be created again through the workflow",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab. At least one pre-existing Active tenant created before this deployment, with >=1 Site and a working Trilogy connection; its Tenant ID, Site list, Trilogy Base URL and status were recorded before deployment.",
+      "test_data": "Tenant Name: <exact name of the existing Active tenant>; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-020",
+        "REQ-003"
+      ],
+      "source": "Wiki: Automation/TCS-Functional-Items/TGO/Connector-Configuration-and-Tenant-Onboarding",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter the existing tenant's name and a valid Trilogy Go Domain",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Open the Tenants list and filter by that name",
+          "expected_result": "A duplicate-tenant error is shown; user stays on Tenant Information; only the original tenant exists (no new Pending record) and the original tenant's status stays Active."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-015",
+      "title": "TGO - Duplicate Tenant - Case And Space Variants",
+      "scenario": "Duplicate Tenant - Case And Space Variants",
+      "test_condition": "Duplicate detection handles case and surrounding-space variants",
+      "type": "Boundary",
+      "test_level": "System",
+      "technique": "Error Guessing",
+      "category": "Functional",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab. A tenant named QA_TGO_Dup_01 exists.",
+      "test_data": "Tenant Names: 'qa_tgo_dup_01', 'QA_TGO_DUP_01', ' QA_TGO_Dup_01 '",
+      "req_ids": [
+        "REQ-020"
+      ],
+      "source": "Wiki: Automation/TCS-Functional-Items/TGO/Connector-Configuration-and-Tenant-Onboarding",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter 'qa_tgo_dup_01' with a valid Trilogy Go Domain and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Repeat with 'QA_TGO_DUP_01'",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Repeat with ' QA_TGO_Dup_01 '",
+          "expected_result": "Each variant is treated consistently with the existing duplicate rule (rejected if names are case-insensitive unique); the padded variant is always rejected after trimming; no near-duplicate Pending tenants are created unintentionally (record the rule observed)."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-016",
+      "title": "TGO - Security - XSS Payload In Tenant Fields",
+      "scenario": "Security - XSS Payload In Tenant Fields",
+      "test_condition": "Script payloads in Tenant Name/Description are stored and rendered as text",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: QA_XSS_<yyyyMMddHHmm><img src=x onerror=alert(1)>; Tenant Description: <script>alert('tgo')</script>",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "Description - Tenant Information Section",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter the payloads from Test Data with a valid Trilogy Go Domain and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Open the Tenants list",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Re-open the tenant's Tenant Information tab",
+          "expected_result": "Either the input is rejected by validation or it is saved and rendered HTML-encoded as literal text in the list, workflow header and form; no script executes and no alert dialog appears."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-017",
+      "title": "TGO - Security - SQL Injection String In Tenant Name",
+      "scenario": "Security - SQL Injection String In Tenant Name",
+      "test_condition": "SQL/NoSQL meta characters are treated as literal data",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 3,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: QA_SQLi' OR '1'='1; Tenant Description: {\"$gt\":\"\"}",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "Description - Tenant Information Section",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter the Test Data values with a valid Trilogy Go Domain and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Open the Tenants list and search for 'QA_SQLi'",
+          "expected_result": "Request is rejected by validation or saved as literal text; no server error (500), no extra/other tenants exposed in the list and existing tenants are unchanged."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-018",
+      "title": "TGO - AC2 - Save And Next Saves Tenant And Advances",
+      "scenario": "AC2 - Save And Next Saves Tenant And Advances",
+      "test_condition": "Valid Tenant Information is saved and the workflow advances to Regions/Sites",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-002",
+        "REQ-001"
+      ],
+      "source": "[Work Item AC] AC2",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter Tenant Name, Tenant Description and Trilogy Go Domain from Test Data",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Open the Tenants list in a new browser tab and search the Tenant Name",
+          "expected_result": "Success feedback is shown, the Regions/Sites tab becomes active, and the tenant appears exactly once in the Tenants list with the entered Name, Description and Trilogy Go Domain."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-019",
+      "title": "TGO - AC2 - Rapid Double Click On Save And Next",
+      "scenario": "AC2 - Rapid Double Click On Save And Next",
+      "test_condition": "Multiple rapid Save & Next clicks create only one tenant",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Error Guessing",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-002"
+      ],
+      "source": "[Work Item AC] AC2",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter Tenant Name, Tenant Description and Trilogy Go Domain from Test Data",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Double/triple-click 'Save & Next' rapidly",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Open the Tenants list and search the Tenant Name",
+          "expected_result": "Button is disabled/ignored while saving; exactly one Pending tenant exists; no duplicate-name error or 500 is displayed to the user."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-020",
+      "title": "TGO - AC2 - Save And Next Fails On Server Or Network Error",
+      "scenario": "AC2 - Save And Next Fails On Server Or Network Error",
+      "test_condition": "A failed save keeps the user on the step with data retained and creates no partial tenant",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Recovery",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab. Browser DevTools available to set 'Offline' or block the tenant save request (ref. Bug 1476792 - 500 on Create Tenant).",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-002",
+        "REQ-011"
+      ],
+      "source": "[Work Item AC] AC2",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter Tenant Name, Tenant Description and Trilogy Go Domain from Test Data",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "In DevTools set Network to Offline (or block the save request)",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 7,
+          "action": "Restore the network and click 'Save & Next' again",
+          "expected_result": ""
+        },
+        {
+          "index": 8,
+          "action": "Open the Tenants list and search the Tenant Name",
+          "expected_result": "On failure a clear error is shown, the user stays on Tenant Information and entered values are retained; after retry the tenant is saved once as Pending and the workflow advances; no orphan/partial tenant exists from the failed attempt."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-021",
+      "title": "TGO - AC2 - Back To Tenant Information Edit And Save Again",
+      "scenario": "AC2 - Back To Tenant Information Edit And Save Again",
+      "test_condition": "Re-saving a completed step updates the same tenant",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com; updated Tenant Description: QA onboarding workflow test - updated",
+      "req_ids": [
+        "REQ-002",
+        "REQ-001"
+      ],
+      "source": "[Work Item AC] AC2",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter Tenant Name, Tenant Description and Trilogy Go Domain from Test Data and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Click the 'Tenant Information' tab",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Verify saved values are prefilled, change Tenant Description to the updated value",
+          "expected_result": ""
+        },
+        {
+          "index": 7,
+          "action": "Click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 8,
+          "action": "Open the Tenants list and search the Tenant Name",
+          "expected_result": "Saved values are prefilled on return; the update is saved to the same tenant (same Tenant ID); exactly one tenant exists with the updated description and status Pending; workflow is on Regions/Sites."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-022",
+      "title": "TGO - Navigation - Leave Workflow With Unsaved Changes",
+      "scenario": "Navigation - Leave Workflow With Unsaved Changes",
+      "test_condition": "Leaving with unsaved changes warns the user and the prompt is responsive",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Error Guessing",
+      "category": "Usability",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab. (ref. Bug 1459456 - unresponsive Leave/Stay popup on Manage Service End Point).",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-002",
+        "REQ-005"
+      ],
+      "source": "[Work Item AC] AC2",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter Tenant Name, Tenant Description and Trilogy Go Domain from Test Data without saving",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Click another side-menu item (e.g. Sites or Activity Report)",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "If a Leave/Stay prompt appears click 'Stay'",
+          "expected_result": ""
+        },
+        {
+          "index": 7,
+          "action": "Click the menu item again and choose 'Leave'",
+          "expected_result": "A leave/stay confirmation (if implemented per Trilogy pattern) is shown and both buttons respond; 'Stay' keeps entered data; 'Leave' navigates away and no tenant is created from the unsaved data. If no prompt exists, unsaved data is discarded and no tenant is created (record behaviour)."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-023",
+      "title": "TGO - AC3 - New Tenant Saved With Pending Status",
+      "scenario": "AC3 - New Tenant Saved With Pending Status",
+      "test_condition": "First save of a new tenant sets status Pending",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-003"
+      ],
+      "source": "[Work Item AC] AC3",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter Tenant Name, Tenant Description and Trilogy Go Domain from Test Data and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Navigate to the Tenants list",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Locate the new tenant and read its Status",
+          "expected_result": ""
+        },
+        {
+          "index": 7,
+          "action": "Refresh the page and read the Status again",
+          "expected_result": "The new tenant shows Status = Pending (not Active) before and after refresh."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-024",
+      "title": "TGO - AC3 - Pending Tenant Not Active Immediately",
+      "scenario": "AC3 - Pending Tenant Not Active Immediately",
+      "test_condition": "A Pending tenant is not treated as Active anywhere in TGO",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants (list).",
+      "test_data": "Pending tenant from Preconditions",
+      "req_ids": [
+        "REQ-003",
+        "REQ-009"
+      ],
+      "source": "[Work Item AC] AC3",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' and filter/sort by Status if available",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Open the Pending tenant and check the header/status badge",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Check any Active-only views/filters (e.g. Active filter, tenant selectors)",
+          "expected_result": "The tenant is listed only as Pending, is excluded from Active-only filters/counts, and no action or view shows it as Active."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-025",
+      "title": "TGO - AC3 - Pending Status Persisted In Backend",
+      "scenario": "AC3 - Pending Status Persisted In Backend",
+      "test_condition": "Tenant lifecycle state Pending is stored for the new tenant record",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Database",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Read access to the TGO tenant store (lifecycle state field from US 1411909) or the tenant GET API via DevTools.",
+      "test_data": "Tenant ID of the Pending tenant",
+      "req_ids": [
+        "REQ-003"
+      ],
+      "source": "[Work Item AC] AC3",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Open DevTools Network tab and open the Pending tenant in the Tenants list",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Inspect the tenant GET response",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query the tenant record in the TGO tenant store by Tenant ID",
+          "expected_result": "API response and stored record both show lifecycle state Pending (not Active/null); Name, Description and Trilogy Go Domain match the UI entries."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-026",
+      "title": "TGO - AC4 - Complete Onboarding Multiple Regions Becomes Active",
+      "scenario": "AC4 - Complete Onboarding Multiple Regions Becomes Active",
+      "test_condition": "Completing all steps with several Regions/Sites transitions the tenant to Active",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Region Name: QA_Region_East; Trilogy Base URL: loyalty-atm-a02.purplecheckpoint.com; Region Description: QA east region; Region 2: QA_Region_West / loyalty-atm-a02.purplecheckpoint.com; Sites QA_Site_01 (East), QA_Site_02 (West)",
+      "req_ids": [
+        "REQ-004",
+        "REQ-009",
+        "REQ-007"
+      ],
+      "source": "[Work Item AC] AC4",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "On Regions/Sites click 'Add Region' and save QA_Region_East",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Add Region QA_Region_West",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Add Site QA_Site_01 under QA_Region_East and QA_Site_02 under QA_Region_West",
+          "expected_result": ""
+        },
+        {
+          "index": 7,
+          "action": "Click the final completion action ('Save & Next' / Finish / Complete)",
+          "expected_result": ""
+        },
+        {
+          "index": 8,
+          "action": "Open the Tenants list and read the Status",
+          "expected_result": "Onboarding completes with a success message; the tenant status changes from Pending to Active and both Regions with their Sites are shown in the hierarchy."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-027",
+      "title": "TGO - AC4 - Minimum One Region One Site Activates Tenant",
+      "scenario": "AC4 - Minimum One Region One Site Activates Tenant",
+      "test_condition": "The minimum Region/Site configuration activates the tenant",
+      "type": "Boundary",
+      "test_level": "System",
+      "technique": "BVA",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab. Assumption A1 (>=1 Region with >=1 Site).",
+      "test_data": "Region Name: QA_Region_East; Trilogy Base URL: loyalty-atm-a02.purplecheckpoint.com; Region Description: QA east region; Site: QA_Site_01 with the existing mandatory Site fields populated per the current Site form",
+      "req_ids": [
+        "REQ-004",
+        "REQ-009"
+      ],
+      "source": "[Work Item AC] AC4",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Add one Region from Test Data",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Add one Site under that Region",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Click the final completion action",
+          "expected_result": ""
+        },
+        {
+          "index": 7,
+          "action": "Open the Tenants list and read the Status",
+          "expected_result": "With exactly one Region and one Site the tenant becomes Active (if the build requires more, record the actual minimum and raise against REQ-004 ambiguity)."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-028",
+      "title": "TGO - AC4 - No Region Keeps Tenant Pending",
+      "scenario": "AC4 - No Region Keeps Tenant Pending",
+      "test_condition": "Tenant Information only (no Region) cannot activate the tenant",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Decision Table",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Decision rule: Tenant Info = Y, Region = N, Site = N",
+      "req_ids": [
+        "REQ-009",
+        "REQ-004",
+        "REQ-010"
+      ],
+      "source": "Description - Tenant Lifecycle Management / Validation",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "On Regions/Sites (no Regions) click the final completion action if enabled",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Open the Tenants list and read the Status",
+          "expected_result": "Completion is disabled or blocked with a message that at least one Region/Site is required; status remains Pending."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-029",
+      "title": "TGO - AC4 - Region Without Site Keeps Tenant Pending",
+      "scenario": "AC4 - Region Without Site Keeps Tenant Pending",
+      "test_condition": "A Region without any Site does not satisfy onboarding requirements",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Decision Table",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Decision rule: Tenant Info = Y, Region = Y, Site = N; Region Name: QA_Region_East; Trilogy Base URL: loyalty-atm-a02.purplecheckpoint.com; Region Description: QA east region",
+      "req_ids": [
+        "REQ-009",
+        "REQ-004"
+      ],
+      "source": "Description - Tenant Lifecycle Management / Validation",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Add one Region from Test Data and do not add any Site",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Click the final completion action if enabled",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Open the Tenants list and read the Status",
+          "expected_result": "Completion is blocked with a Site-required message and status remains Pending (if the build activates here, log as discrepancy vs assumption A1 for PO confirmation)."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-030",
+      "title": "TGO - Lifecycle - Active Tenant Loses Last Site",
+      "scenario": "Lifecycle - Active Tenant Loses Last Site",
+      "test_condition": "Status behaviour when an Active tenant's only Site is soft-deleted is defined and consistent",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Exploratory",
+      "category": "Functional",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A tenant activated through the new workflow with exactly one Region and one Site. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Tenant from TC activating with minimum config",
+      "req_ids": [
+        "REQ-004",
+        "REQ-009"
+      ],
+      "source": "[Work Item AC] AC4",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "On Regions/Sites delete the only Site (soft delete) and confirm",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Open the Tenants list and read the Status",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Try deleting the Region",
+          "expected_result": "Behaviour is consistent and recorded: the tenant either stays Active or reverts to Pending as per PO decision (Missing Requirement); Region deletion is allowed only when no Sites remain (US 1411893); no error/500 occurs."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-031",
+      "title": "TGO - Bypass - Status Cannot Be Set Manually",
+      "scenario": "Bypass - Status Cannot Be Set Manually",
+      "test_condition": "Pending status cannot be changed to Active via editable controls",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Security",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Pending tenant from Preconditions",
+      "req_ids": [
+        "REQ-010",
+        "REQ-009"
+      ],
+      "source": "Description - Validation",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "On Tenant Information and on the tenant list row look for any Status field/toggle/action",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "If any status control exists attempt to set it to Active and save",
+          "expected_result": "Status is read-only (no control) or the change is rejected; tenant remains Pending."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-032",
+      "title": "TGO - Bypass - Direct API Activation Of Incomplete Tenant",
+      "scenario": "Bypass - Direct API Activation Of Incomplete Tenant",
+      "test_condition": "Backend rejects activation of a tenant with incomplete onboarding",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "API",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Tenant update/onboarding-state API request captured from DevTools while saving Tenant Information (endpoint not documented in intake).",
+      "test_data": "Captured request with lifecycle/status value changed to Active",
+      "req_ids": [
+        "REQ-010",
+        "REQ-009"
+      ],
+      "source": "Description - Validation",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Replay the captured tenant update/onboarding-state request with status/state = Active using Postman and the same auth token",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the request",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Open the Tenants list and read the Status",
+          "expected_result": "API returns a 4xx validation/forbidden error (not 200, not 500); tenant remains Pending."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-033",
+      "title": "TGO - Bypass - Deep Link To Regions Sites Step",
+      "scenario": "Bypass - Deep Link To Regions Sites Step",
+      "test_condition": "Direct URL to a later step cannot skip required steps or expose other data",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Regions/Sites URL of the Pending tenant copied from the address bar.",
+      "test_data": "Copied Regions/Sites URL; same URL with a non-existent tenant ID; same URL with no tenant ID",
+      "req_ids": [
+        "REQ-010"
+      ],
+      "source": "Description - Validation",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Open a new Add Tenant workflow and, without saving, paste the Regions/Sites URL pattern with no tenant ID",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Paste the URL with a non-existent tenant ID",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Paste the valid Pending tenant URL",
+          "expected_result": "No-ID and invalid-ID URLs redirect to Tenant Information or show a not-found message without creating data or errors; the valid URL opens the Pending tenant's Regions/Sites step normally."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-034",
+      "title": "TGO - Navigation - Browser Back After Save And Next",
+      "scenario": "Navigation - Browser Back After Save And Next",
+      "test_condition": "Browser back/forward does not resubmit or duplicate the tenant",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Error Guessing",
+      "category": "Functional",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Name: QA_TGO_Onb_<yyyyMMddHHmm>; Tenant Description: QA onboarding workflow test; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-002",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC2",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Enter Tenant Name, Tenant Description and Trilogy Go Domain from Test Data and click 'Save & Next'",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Press the browser Back button",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Click 'Save & Next' on the shown form",
+          "expected_result": ""
+        },
+        {
+          "index": 7,
+          "action": "Press Forward, then open the Tenants list",
+          "expected_result": "Back shows the saved tenant data (not a blank new-tenant form that creates a second record); re-saving updates the same tenant; exactly one Pending tenant exists."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-035",
+      "title": "TGO - AC5 - Resume Pending Tenant At Next Step",
+      "scenario": "AC5 - Resume Pending Tenant At Next Step",
+      "test_condition": "A Pending tenant reopens at the next incomplete step with saved data prefilled",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants (list).",
+      "test_data": "Pending tenant from Preconditions",
+      "req_ids": [
+        "REQ-005"
+      ],
+      "source": "[Work Item AC] AC5",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' and navigate to another menu (e.g. Activity Report), then back to 'Tenants'",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Open the Pending tenant (Edit / Continue Onboarding)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Click the 'Tenant Information' tab",
+          "expected_result": "Workflow opens on the next incomplete step (Regions/Sites); Tenant Information shows the saved Name, Description and Trilogy Go Domain; status still Pending."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-036",
+      "title": "TGO - AC5 - Progress Persists Across Logout And Browser",
+      "scenario": "AC5 - Progress Persists Across Logout And Browser",
+      "test_condition": "Onboarding progress persists across sessions and browsers",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab. Chrome and Edge available.",
+      "test_data": "Region Name: QA_Region_East; Trilogy Base URL: loyalty-atm-a02.purplecheckpoint.com; Region Description: QA east region",
+      "req_ids": [
+        "REQ-011",
+        "REQ-005"
+      ],
+      "source": "Description - Validation",
+      "steps": [
+        {
+          "index": 1,
+          "action": "In Chrome log in to https://trilogy-go-qa01.purplecheckpoint.com/tgo, click 'Tenants' and open the Pending tenant",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Add a Region from Test Data (no Site)",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Log out and close the browser",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "In Edge log in to /tgo and open the same tenant from 'Tenants'",
+          "expected_result": "In the new session/browser the tenant is Pending, opens on Regions/Sites and shows the saved Region; Tenant Information values are intact (server-side persistence, not local storage)."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-037",
+      "title": "TGO - AC5 - Pending Tenants Identifiable In Tenants List",
+      "scenario": "AC5 - Pending Tenants Identifiable In Tenants List",
+      "test_condition": "Users can find Pending tenants and an action to continue onboarding",
+      "type": "Positive",
+      "test_level": "UAT",
+      "technique": "EP",
+      "category": "Usability",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. At least one pre-existing Active tenant created before this deployment, with >=1 Site and a working Trilogy connection; its Tenant ID, Site list, Trilogy Base URL and status were recorded before deployment. Breadcrumb: TGO Dashboard (/tgo) > Tenants (list).",
+      "test_data": "One Pending and one Active tenant",
+      "req_ids": [
+        "REQ-005",
+        "REQ-003"
+      ],
+      "source": "[Work Item AC] AC5",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to /tgo and click 'Tenants'",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Compare the Pending and Active rows (status column/badge, row actions)",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Use search/filter/sort on status if available",
+          "expected_result": "Pending and Active tenants are clearly distinguished by status; the Pending row offers an action to continue onboarding; filter/sort by status (if present) returns correct rows."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-038",
+      "title": "TGO - AC5 - Session Timeout During Regions Step",
+      "scenario": "AC5 - Session Timeout During Regions Step",
+      "test_condition": "Session expiry mid-step keeps saved data and loses only unsaved input",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Error Guessing",
+      "category": "Recovery",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "High",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab. Ability to expire the session (wait for timeout or delete the auth cookie/token in DevTools).",
+      "test_data": "Region Name: QA_Region_East; Trilogy Base URL: loyalty-atm-a02.purplecheckpoint.com; Region Description: QA east region",
+      "req_ids": [
+        "REQ-011"
+      ],
+      "source": "Description - Validation",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Click 'Add Region' and fill the modal without saving",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Expire the session",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Click Save in the modal",
+          "expected_result": ""
+        },
+        {
+          "index": 7,
+          "action": "Log in again and open the tenant",
+          "expected_result": "User is sent to login (or shown a session-expired message) without a 500; after re-login the tenant is Pending with previously saved data intact; the unsaved Region is absent or saved once - never duplicated or partially saved."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-039",
+      "title": "TGO - Concurrency - Two Admins Onboard Same Tenant",
+      "scenario": "Concurrency - Two Admins Onboard Same Tenant",
+      "test_condition": "Concurrent edits on one Pending tenant do not lose data or double-activate",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Error Guessing",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). Two Admin users (A in Chrome, B in Edge). A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "A adds QA_Region_East; B adds QA_Region_West + QA_Site_02",
+      "req_ids": [
+        "REQ-011",
+        "REQ-004"
+      ],
+      "source": "Description - Validation",
+      "steps": [
+        {
+          "index": 1,
+          "action": "User A and User B both open the same Pending tenant on Regions/Sites",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "User A adds QA_Region_East",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "User B (without refresh) adds QA_Region_West with QA_Site_02 and completes onboarding",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Both users refresh",
+          "expected_result": "Both Regions exist (no lost update) and the tenant is Active exactly once; stale screens refresh or show a conflict message instead of overwriting data."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-040",
+      "title": "TGO - Browser Refresh Mid Workflow Keeps Step",
+      "scenario": "Browser Refresh Mid Workflow Keeps Step",
+      "test_condition": "Refreshing the page keeps the current step and saved data",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Recovery",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Region Name: QA_Region_East; Trilogy Base URL: loyalty-atm-a02.purplecheckpoint.com; Region Description: QA east region",
+      "req_ids": [
+        "REQ-011",
+        "REQ-005"
+      ],
+      "source": "Description - Validation",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Add a Region from Test Data",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Press F5 on the Regions/Sites tab",
+          "expected_result": "After reload the same tenant is shown on Regions/Sites with the saved Region; no redirect to a blank new-tenant form; status Pending."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-041",
+      "title": "TGO - AC7 - Regions Sites Empty State With Add Region",
+      "scenario": "AC7 - Regions Sites Empty State With Add Region",
+      "test_condition": "New tenant Regions/Sites step shows empty state and Add Region",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Pending tenant without Regions",
+      "req_ids": [
+        "REQ-017",
+        "REQ-007"
+      ],
+      "source": "Successor #1411893",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Observe the Regions/Sites tab content",
+          "expected_result": "An empty-state message indicating no Regions exist is displayed with an 'Add Region' action; no Sites of other tenants are listed."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-042",
+      "title": "TGO - AC7 - Add Region Within Onboarding",
+      "scenario": "AC7 - Add Region Within Onboarding",
+      "test_condition": "A Region can be created from the onboarding Regions/Sites step",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Region Name: QA_Region_East; Trilogy Base URL: loyalty-atm-a02.purplecheckpoint.com; Region Description: QA east region",
+      "req_ids": [
+        "REQ-007",
+        "REQ-017"
+      ],
+      "source": "[Work Item AC] AC7",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Click 'Add Region'",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Verify the modal fields and fill Region Name, Trilogy Base URL and Region Description from Test Data",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Click Save in the modal",
+          "expected_result": "Modal (Offer Maker pattern) shows Region Name, Trilogy Base URL and Region Description; on save the Region appears as a parent row in the nested grid of this tenant; tenant stays Pending."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-043",
+      "title": "TGO - AC7 - Add Site Under Region And Expand Collapse",
+      "scenario": "AC7 - Add Site Under Region And Expand Collapse",
+      "test_condition": "A Site can be added under a Region and the hierarchy expands/collapses",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Pending tenant with Region QA_Region_East and no Sites. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Site: QA_Site_01 with the existing mandatory Site fields populated per the current Site form",
+      "req_ids": [
+        "REQ-007",
+        "REQ-015",
+        "REQ-017"
+      ],
+      "source": "[Work Item AC] AC7",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Click the inline 'Add Site' action on QA_Region_East",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Fill the Site fields from Test Data and save",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Collapse and expand QA_Region_East",
+          "expected_result": "Site is shown as a child row under QA_Region_East; collapse hides it and expand shows it again; existing Site fields are available in the Site modal."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-044",
+      "title": "TGO - Region Site Rule - Site Cannot Be Created Without Region",
+      "scenario": "Region Site Rule - Site Cannot Be Created Without Region",
+      "test_condition": "Site creation requires a Region (no orphan Sites)",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Decision Table",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Pending tenant with no Regions",
+      "req_ids": [
+        "REQ-015"
+      ],
+      "source": "Successor #1411893",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Look for any Add Site action on the empty Regions/Sites step",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "If a Site modal can be opened try to save a Site without selecting a Region",
+          "expected_result": "No Add Site action is available without a Region, or saving is blocked with a 'Region is required' message; no Site record is created."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-045",
+      "title": "TGO - Region Site Rule - Orphan Site Via API Rejected",
+      "scenario": "Region Site Rule - Orphan Site Via API Rejected",
+      "test_condition": "Backend rejects Site creation without a valid Region for the tenant",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "API",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Pending tenant with one Region; Site create request captured from DevTools.",
+      "test_data": "Captured Site create payload with Region reference removed; then with a Region ID belonging to another tenant",
+      "req_ids": [
+        "REQ-015",
+        "REQ-010"
+      ],
+      "source": "Successor #1411893",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Replay the Site create request without Region reference",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Replay it with another tenant's Region ID",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Reload the tenant's Regions/Sites step",
+          "expected_result": "Both requests are rejected with 4xx validation errors; no orphan or cross-tenant Site appears in either tenant's hierarchy."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-046",
+      "title": "TGO - Region Rule - Duplicate Region Name In Same Tenant",
+      "scenario": "Region Rule - Duplicate Region Name In Same Tenant",
+      "test_condition": "Region names are unique within a tenant during onboarding",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Pending tenant with Region QA_Region_East. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Region Name: QA_Region_East; Trilogy Base URL: loyalty-atm-a02.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-016"
+      ],
+      "source": "Successor #1411893",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Click 'Add Region' and enter the duplicate Region Name",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Click Save",
+          "expected_result": "Duplicate Region name validation message is shown; modal stays open; only one QA_Region_East exists."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-047",
+      "title": "TGO - Region Rule - Same Region Name In Different Tenant Allowed",
+      "scenario": "Region Rule - Same Region Name In Different Tenant Allowed",
+      "test_condition": "Region uniqueness is scoped per tenant",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Tenant X has Region QA_Region_East; Tenant Y is Pending without Regions. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Region Name: QA_Region_East for Tenant Y",
+      "req_ids": [
+        "REQ-016"
+      ],
+      "source": "Successor #1411893",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Open Tenant Y onboarding Regions/Sites step",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Add Region QA_Region_East with a valid Trilogy Base URL",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Open Tenant X hierarchy",
+          "expected_result": "Region is created for Tenant Y; Tenant X's Region is unchanged and each tenant shows only its own Region."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-048",
+      "title": "TGO - Region Rule - Duplicate Name Case And Space Variants",
+      "scenario": "Region Rule - Duplicate Name Case And Space Variants",
+      "test_condition": "Region duplicate check handles case and trailing spaces",
+      "type": "Boundary",
+      "test_level": "System",
+      "technique": "BVA",
+      "category": "Functional",
+      "priority": 3,
+      "severity": "Low",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Pending tenant with Region QA_Region_East. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Region Names: 'qa_region_east', 'QA_Region_East ' (trailing space)",
+      "req_ids": [
+        "REQ-016"
+      ],
+      "source": "Successor #1411893",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Add Region 'qa_region_east' and save",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Add Region 'QA_Region_East ' and save",
+          "expected_result": "Trailing-space variant is rejected as duplicate after trimming; case variant follows the documented rule consistently with backend validation (record rule); no two visually identical Regions exist."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-049",
+      "title": "TGO - Region Modal - Required Fields Validation",
+      "scenario": "Region Modal - Required Fields Validation",
+      "test_condition": "Region cannot be saved without Region Name or Trilogy Base URL",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "(a) Region Name blank; (b) Trilogy Base URL blank; (c) Trilogy Base URL 'not a url'",
+      "req_ids": [
+        "REQ-017",
+        "REQ-009"
+      ],
+      "source": "Successor #1411893",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to https://trilogy-go-qa01.purplecheckpoint.com/tgo and log in",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Click 'Tenants' in the side menu",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Locate the tenant from Preconditions and open it (Edit / Continue Onboarding action)",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Click 'Add Region' and try to save variant (a)",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Try to save variant (b)",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Try to save variant (c)",
+          "expected_result": "Each variant shows field-level validation; no Region is created; tenant remains Pending."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-050",
+      "title": "TGO - AC7 Navigation Refactor - Region Site Not Disconnected",
+      "scenario": "AC7 Navigation Refactor - Region Site Not Disconnected",
+      "test_condition": "Region/Site management is reached via the tenant, not a disconnected page",
+      "type": "Positive",
+      "test_level": "UAT",
+      "technique": "Exploratory",
+      "category": "Usability",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. At least one pre-existing Active tenant created before this deployment, with >=1 Site and a working Trilogy connection; its Tenant ID, Site list, Trilogy Base URL and status were recorded before deployment. Breadcrumb: TGO Dashboard (/tgo) > Tenants (list).",
+      "test_data": "Existing tenant with Sites",
+      "req_ids": [
+        "REQ-012",
+        "REQ-007"
+      ],
+      "source": "Description - Navigation Refactor",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to /tgo and review the side menu for standalone Region/Site pages",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Open the existing tenant from 'Tenants'",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Open its Regions/Sites tab",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "If a standalone Sites page still exists, open it and compare the data for the same tenant",
+          "expected_result": "Regions and Sites of the tenant are managed from the tenant's Regions/Sites tab; any remaining standalone page shows the same hierarchy/data (no conflicting or disconnected lists)."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-051",
+      "title": "TGO - Edit Existing Tenant - Non Wizard Tab Navigation",
+      "scenario": "Edit Existing Tenant - Non Wizard Tab Navigation",
+      "test_condition": "Existing tenant edit allows free tab navigation with Region/Site access",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. At least one pre-existing Active tenant created before this deployment, with >=1 Site and a working Trilogy connection; its Tenant ID, Site list, Trilogy Base URL and status were recorded before deployment. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab. Assumption A3 (Task 1488342 'Non Wizard Mode creation for update tenant').",
+      "test_data": "Existing Active tenant",
+      "req_ids": [
+        "REQ-001",
+        "REQ-007",
+        "REQ-006"
+      ],
+      "source": "[Work Item AC] AC1",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to /tgo and click 'Tenants'",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Open the existing Active tenant (Edit)",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click the 'Regions/Sites' tab directly",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Click back to 'Tenant Information'",
+          "expected_result": "Both tabs are freely accessible for the existing tenant without forcing Save & Next; the migrated Regions/Sites are shown; status stays Active."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-052",
+      "title": "TGO - AC6 - Existing Active Tenant Remains Active",
+      "scenario": "AC6 - Existing Active Tenant Remains Active",
+      "test_condition": "Pre-existing Active tenants keep Active status after deployment",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. At least one pre-existing Active tenant created before this deployment, with >=1 Site and a working Trilogy connection; its Tenant ID, Site list, Trilogy Base URL and status were recorded before deployment. Breadcrumb: TGO Dashboard (/tgo) > Tenants (list).",
+      "test_data": "Pre-deployment snapshot of existing tenants (ID, Name, Status)",
+      "req_ids": [
+        "REQ-006",
+        "REQ-018"
+      ],
+      "source": "[Work Item AC] AC6",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Navigate to /tgo and click 'Tenants'",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Compare every tenant in the pre-deployment snapshot with the list",
+          "expected_result": "Every pre-existing tenant is present with the same Name and Tenant ID and Status Active; none is Pending."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-053",
+      "title": "TGO - AC6 - Existing Tenant Sites Migrated Under Regions",
+      "scenario": "AC6 - Existing Tenant Sites Migrated Under Regions",
+      "test_condition": "Existing Sites and Trilogy Base URLs are preserved under Regions with no orphans",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. At least one pre-existing Active tenant created before this deployment, with >=1 Site and a working Trilogy connection; its Tenant ID, Site list, Trilogy Base URL and status were recorded before deployment. Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "Pre-deployment Site list and Trilogy Base URL of the existing tenant",
+      "req_ids": [
+        "REQ-018",
+        "REQ-006",
+        "REQ-015"
+      ],
+      "source": "Parent #1375449 (sibling US 1411909 Migration Support)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Open the existing tenant from 'Tenants'",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Open the 'Regions/Sites' tab and expand all Regions",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Compare Sites and each Region's Trilogy Base URL with the pre-deployment snapshot",
+          "expected_result": "All pre-existing Sites appear under a Region (none missing/orphaned) and the Region's Trilogy Base URL equals the previous Site-level Trilogy Base URL."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-054",
+      "title": "TGO - AC6 - Existing Tenant Connectivity And TGO Settings Work",
+      "scenario": "AC6 - Existing Tenant Connectivity And TGO Settings Work",
+      "test_condition": "Existing tenant connector configuration keeps working after deployment",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). At least one pre-existing Active tenant created before this deployment, with >=1 Site and a working Trilogy connection; its Tenant ID, Site list, Trilogy Base URL and status were recorded before deployment. Access to the tenant's Trilogy instance (System > Tenant) and TGO Settings under Admin Configuration.",
+      "test_data": "Existing tenant Trilogy Domain / Trilogy Go Domain",
+      "req_ids": [
+        "REQ-006",
+        "REQ-022"
+      ],
+      "source": "[Work Item AC] AC6",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in to the tenant's Trilogy instance and go to System > Tenant",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Search with the Trilogy Domain and Trilogy Go Domain and click 'Check Connectivity'",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "In TGO open Admin Configuration > TGO Settings for one of the tenant's Sites",
+          "expected_result": "Connectivity check is successful and TGO Settings for the Site load with the pre-deployment values."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-055",
+      "title": "TGO - AC6 - Existing Tenant Traffic In Service Activity Report",
+      "scenario": "AC6 - Existing Tenant Traffic In Service Activity Report",
+      "test_condition": "Existing tenant API traffic continues after deployment",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. At least one pre-existing Active tenant created before this deployment, with >=1 Site and a working Trilogy connection; its Tenant ID, Site list, Trilogy Base URL and status were recorded before deployment. Mobile app/kiosk configured for the existing tenant. Breadcrumb: TGO Dashboard (/tgo) > Activity Report.",
+      "test_data": "Existing tenant ID and Site ID",
+      "req_ids": [
+        "REQ-006"
+      ],
+      "source": "[Work Item AC] AC6",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Perform a player action from the tenant's mobile app (e.g. open content/offers)",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "In TGO open Activity Report, select the tenant ID and site ID",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Open the latest request trace",
+          "expected_result": "Requests after deployment are listed for the tenant/site with successful (2xx) responses; no tenant-not-active/unauthorized errors."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-056",
+      "title": "TGO - AC6 - Editing Existing Tenant Does Not Reset To Pending",
+      "scenario": "AC6 - Editing Existing Tenant Does Not Reset To Pending",
+      "test_condition": "Saving an existing Active tenant keeps it Active",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "State Transition",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. At least one pre-existing Active tenant created before this deployment, with >=1 Site and a working Trilogy connection; its Tenant ID, Site list, Trilogy Base URL and status were recorded before deployment. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab.",
+      "test_data": "Tenant Description: <original> + ' - edited by QA'",
+      "req_ids": [
+        "REQ-006",
+        "REQ-003"
+      ],
+      "source": "[Work Item AC] AC6",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Open the existing Active tenant from 'Tenants'",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Change Tenant Description and click 'Save & Next' (or Save)",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Open the Tenants list and read the Status",
+          "expected_result": "Change is saved and the tenant remains Active (not reset to Pending); Regions/Sites unchanged."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-057",
+      "title": "TGO - AC6 - Migrated Data Lifecycle And Region Integrity",
+      "scenario": "AC6 - Migrated Data Lifecycle And Region Integrity",
+      "test_condition": "Backend records of existing tenants have Active state and valid Region references",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Database",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). Read access to the TGO tenant/region/site store. At least one pre-existing Active tenant created before this deployment, with >=1 Site and a working Trilogy connection; its Tenant ID, Site list, Trilogy Base URL and status were recorded before deployment.",
+      "test_data": "All tenant, region and site records existing before deployment",
+      "req_ids": [
+        "REQ-018",
+        "REQ-006"
+      ],
+      "source": "Parent #1375449 (sibling US 1411909 Migration Support)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Query all tenant records created before the deployment date",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query all site records and their Region reference",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query Regions and their Tenant reference",
+          "expected_result": "All pre-existing tenants have lifecycle state Active (none null/Pending); every Site references an existing, non-deleted Region of the same tenant; no orphan Sites or Regions."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-058",
+      "title": "TGO - Trilogy Onboarding - Pending Tenant Search Behaviour",
+      "scenario": "Trilogy Onboarding - Pending Tenant Search Behaviour",
+      "test_condition": "Pending tenant handling in Trilogy platform onboarding is defined and does not activate the TGO tenant",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Exploratory",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Not Feasible",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Trilogy instance with machine IP registered in TGO IP Restrictions (wiki).",
+      "test_data": "Trilogy Domain: loyalty-atm-a02.purplecheckpoint.com; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-022",
+        "REQ-009"
+      ],
+      "source": "Wiki: Connector-Configuration-and-Tenant-Onboarding (Trilogy System > Tenant > Onboard)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in to Trilogy, select All Properties, go to System > Tenant",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Search with the Trilogy Domain and Trilogy Go Domain",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Note whether the Pending tenant is listed and whether 'Onboard' is allowed",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "In TGO read the tenant status",
+          "expected_result": "Behaviour is recorded for PO decision (listed/not listed, onboard allowed/blocked); in all cases the TGO tenant stays Pending until the TGO workflow is completed."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-059",
+      "title": "TGO - Trilogy Onboarding - Completed Tenant Onboards And Connects",
+      "scenario": "Trilogy Onboarding - Completed Tenant Onboards And Connects",
+      "test_condition": "A tenant activated through the new workflow can be onboarded from Trilogy",
+      "type": "Positive",
+      "test_level": "UAT",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). A tenant activated through the new workflow (Region Trilogy Base URL = Trilogy instance domain). Machine IP registered in TGO IP Restrictions.",
+      "test_data": "Trilogy Domain: loyalty-atm-a02.purplecheckpoint.com; Trilogy Go Domain: trilogy-go-qa01.purplecheckpoint.com",
+      "req_ids": [
+        "REQ-022",
+        "REQ-004"
+      ],
+      "source": "Wiki: Connector-Configuration-and-Tenant-Onboarding (Trilogy System > Tenant > Onboard)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in to Trilogy, select All Properties, go to System > Tenant",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Search with the Trilogy Domain and Trilogy Go Domain",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Select the new tenant and click 'Onboard'",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Click 'Check Connectivity'",
+          "expected_result": "Tenant is listed with its Tenant ID, onboarding succeeds and Check Connectivity is successful."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-060",
+      "title": "TGO - Permissions - Read Only User Views Onboarding Only",
+      "scenario": "Permissions - Read Only User Views Onboarding Only",
+      "test_condition": "View TGO Settings users can view onboarding but cannot modify it",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Decision Table",
+      "category": "Security",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User A has a role with only the 'View TGO Settings' permission (US 1411910) - no create/edit/delete permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Tenants > + (Add Tenant) > Tenant Onboarding > Tenant Information tab. Depends on US 1411910.",
+      "test_data": "User A credentials; Pending tenant",
+      "req_ids": [
+        "REQ-019"
+      ],
+      "source": "Parent #1375449 (sibling US 1411910 Permissions)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in to /tgo as User A and click 'Tenants'",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Check for the '+' (Add Tenant) icon",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Open the Pending tenant and view both tabs",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Look for Save & Next, Add Region, Add Site and inline edit/delete actions",
+          "expected_result": "User A can view Tenant Information and the Region/Site hierarchy; Add Tenant, Save & Next, Add Region/Site and edit/delete actions are hidden or disabled."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-061",
+      "title": "TGO - Permissions - Read Only User Write API Rejected",
+      "scenario": "Permissions - Read Only User Write API Rejected",
+      "test_condition": "Backend rejects onboarding writes from read-only users",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 2,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User A has a role with only the 'View TGO Settings' permission (US 1411910) - no create/edit/delete permissions. Tenant create, Region create and tenant update requests captured from an Admin session. (ref. Bug 1474065)",
+      "test_data": "Captured requests replayed with User A's token",
+      "req_ids": [
+        "REQ-019",
+        "REQ-010"
+      ],
+      "source": "Parent #1375449 (sibling US 1411910 Permissions)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Replay the tenant create request with User A's token",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Replay the Region create request with User A's token",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Replay the tenant update request with User A's token",
+          "expected_result": "All requests return 403 Forbidden (not 200/500); no tenant, Region or change is persisted."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-062",
+      "title": "TGO - Permissions - Role Combination Without Create",
+      "scenario": "Permissions - Role Combination Without Create",
+      "test_condition": "Roles lacking create permission cannot start onboarding",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Decision Table",
+      "category": "Security",
+      "priority": 3,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). Non-admin user with Tenant View + Delete but no Create/Edit permission (ref. Bug 1474065). Breadcrumb: TGO Dashboard (/tgo) > Tenants (list).",
+      "test_data": "Non-admin user credentials",
+      "req_ids": [
+        "REQ-019"
+      ],
+      "source": "Parent #1375449 (sibling US 1411910 Permissions)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in to /tgo as the non-admin user and click 'Tenants'",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Try to open the Add Tenant workflow via '+' or its direct URL",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Open an existing tenant's Regions/Sites tab and try Add Region/Add Site",
+          "expected_result": "Add Tenant workflow cannot be started (hidden/disabled/forbidden) and Region/Site create actions are unavailable; no data is created."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-063",
+      "title": "TGO - Audit - Tenant Creation And Activation Logged",
+      "scenario": "Audit - Tenant Creation And Activation Logged",
+      "test_condition": "Tenant creation and Pending->Active transition are traceable",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "Exploratory",
+      "category": "Database",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Access to TGO application logs / tenant record timestamps.",
+      "test_data": "Tenant created and activated in this run",
+      "req_ids": [
+        "REQ-003",
+        "REQ-004"
+      ],
+      "source": "[Work Item AC] AC3",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Create a tenant via Save & Next and complete onboarding",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Inspect the tenant record audit fields (created/modified by, timestamps) and application logs",
+          "expected_result": "Created-by/modified-by and timestamps reflect the acting user and time of creation and activation; if no audit exists, record under Missing Requirements (no error in logs)."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-064",
+      "title": "TGO - Reports - Pending Tenant In Service Activity Report",
+      "scenario": "Reports - Pending Tenant In Service Activity Report",
+      "test_condition": "Report tenant selector handles Pending tenants consistently",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Exploratory",
+      "category": "Functional",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. A Pending tenant exists whose Tenant Information was saved via Save & Next and which has no Regions/Sites yet. Breadcrumb: TGO Dashboard (/tgo) > Activity Report.",
+      "test_data": "Pending tenant name/ID",
+      "req_ids": [
+        "REQ-003",
+        "REQ-022"
+      ],
+      "source": "[Work Item AC] AC3",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Open Activity Report",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Open the tenant selector and search for the Pending tenant",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "If listed select it and load the report",
+          "expected_result": "Pending tenant is either excluded or selectable with an empty result; no error occurs; behaviour recorded for PO (Missing Requirement)."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-065",
+      "title": "TGO - Performance - Regions Step With Large Hierarchy",
+      "scenario": "Performance - Regions Step With Large Hierarchy",
+      "test_condition": "Regions/Sites step stays responsive with many Regions/Sites",
+      "type": "Boundary",
+      "test_level": "System",
+      "technique": "BVA",
+      "category": "Performance",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Build containing US 1407344 deployed to QA (TGO Dashboard https://trilogy-go-qa01.purplecheckpoint.com/tgo). User has an Admin role with Tenant create/edit and Region/Site create/edit permissions. Tenant seeded with 20 Regions and 200 Sites (via API). Assumed threshold <= 3 s (no NFR defined). Breadcrumb: TGO Dashboard (/tgo) > Tenants > <Tenant> > Tenant Onboarding > Regions/Sites tab.",
+      "test_data": "20 Regions x 10 Sites",
+      "req_ids": [
+        "REQ-007",
+        "REQ-017"
+      ],
+      "source": "[Work Item AC] AC7",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Open the seeded tenant's Regions/Sites tab and measure load time (DevTools Performance)",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Expand all Regions",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Click 'Save & Next' / completion and measure response time",
+          "expected_result": "Grid renders and expands without freezing; load and save complete within the assumed 3 s threshold (record actuals); no request errors."
+        }
+      ]
+    }
+  ],
+  "traceability_matrix": [
+    {
+      "req_id": "REQ-001",
+      "source": "[Work Item AC] AC1",
+      "requirement": "Tenant onboarding uses workflow/tab navigation containing (1) Tenant Information and (2) Regions/Sites.",
+      "risk_rating": "Medium",
+      "test_conditions": [
+        "TCOND-001"
+      ],
+      "test_case_ids": [
+        "TC-001",
+        "TC-002",
+        "TC-003",
+        "TC-006",
+        "TC-018",
+        "TC-021",
+        "TC-051"
+      ],
+      "levels": [
+        "System"
+      ],
+      "techniques": [
+        "EP",
+        "Exploratory",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-002",
+      "source": "[Work Item AC] AC2",
+      "requirement": "Save & Next functionality works correctly (persists current step and advances to the next step).",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-002"
+      ],
+      "test_case_ids": [
+        "TC-008",
+        "TC-009",
+        "TC-018",
+        "TC-019",
+        "TC-020",
+        "TC-021",
+        "TC-022",
+        "TC-034"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "EP",
+        "Error Guessing",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-003",
+      "source": "[Work Item AC] AC3",
+      "requirement": "Tenant initially saves in Pending state and does not become Active immediately.",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-003"
+      ],
+      "test_case_ids": [
+        "TC-014",
+        "TC-023",
+        "TC-024",
+        "TC-025",
+        "TC-037",
+        "TC-056",
+        "TC-063",
+        "TC-064"
+      ],
+      "levels": [
+        "Integration",
+        "System",
+        "UAT"
+      ],
+      "techniques": [
+        "EP",
+        "Exploratory",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-004",
+      "source": "[Work Item AC] AC4",
+      "requirement": "Tenant transitions to Active after onboarding completion.",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-004"
+      ],
+      "test_case_ids": [
+        "TC-026",
+        "TC-027",
+        "TC-028",
+        "TC-029",
+        "TC-030",
+        "TC-039",
+        "TC-059",
+        "TC-063"
+      ],
+      "levels": [
+        "Integration",
+        "System",
+        "UAT"
+      ],
+      "techniques": [
+        "BVA",
+        "Decision Table",
+        "EP",
+        "Error Guessing",
+        "Exploratory",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-005",
+      "source": "[Work Item AC] AC5",
+      "requirement": "Users can continue onboarding later (return to a Pending tenant and resume).",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-005"
+      ],
+      "test_case_ids": [
+        "TC-022",
+        "TC-035",
+        "TC-036",
+        "TC-037",
+        "TC-040"
+      ],
+      "levels": [
+        "System",
+        "UAT"
+      ],
+      "techniques": [
+        "EP",
+        "Error Guessing",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-006",
+      "source": "[Work Item AC] AC6",
+      "requirement": "Existing Tenants remain unaffected / functional after deployment.",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-006"
+      ],
+      "test_case_ids": [
+        "TC-051",
+        "TC-052",
+        "TC-053",
+        "TC-054",
+        "TC-055",
+        "TC-056",
+        "TC-057"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "EP",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-007",
+      "source": "[Work Item AC] AC7",
+      "requirement": "Region/Site management is accessible within the onboarding flow.",
+      "risk_rating": "Medium",
+      "test_conditions": [
+        "TCOND-007"
+      ],
+      "test_case_ids": [
+        "TC-026",
+        "TC-041",
+        "TC-042",
+        "TC-043",
+        "TC-050",
+        "TC-051",
+        "TC-065"
+      ],
+      "levels": [
+        "System",
+        "UAT"
+      ],
+      "techniques": [
+        "BVA",
+        "EP",
+        "Exploratory",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-008",
+      "source": "Description - Tenant Information Section",
+      "requirement": "Tenant Information section contains Tenant Name, Tenant Description, Trilogy Go Domain, consistent with current onboarding fields.",
+      "risk_rating": "Medium",
+      "test_conditions": [
+        "TCOND-008"
+      ],
+      "test_case_ids": [
+        "TC-007",
+        "TC-008",
+        "TC-009",
+        "TC-010",
+        "TC-011",
+        "TC-012",
+        "TC-013",
+        "TC-016",
+        "TC-017"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "BVA",
+        "EP",
+        "Error Guessing"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-009",
+      "source": "Description - Tenant Lifecycle Management / Validation",
+      "requirement": "Tenant becomes Active only after required onboarding steps are completed and Region/Site configuration requirements are satisfied; incomplete onboarding shall not activate the Tenant.",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-009"
+      ],
+      "test_case_ids": [
+        "TC-024",
+        "TC-026",
+        "TC-027",
+        "TC-028",
+        "TC-029",
+        "TC-030",
+        "TC-031",
+        "TC-032",
+        "TC-049",
+        "TC-058"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "BVA",
+        "Decision Table",
+        "EP",
+        "Error Guessing",
+        "Exploratory",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-010",
+      "source": "Description - Validation",
+      "requirement": "Users shall not bypass required onboarding steps.",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-010"
+      ],
+      "test_case_ids": [
+        "TC-003",
+        "TC-028",
+        "TC-031",
+        "TC-032",
+        "TC-033",
+        "TC-034",
+        "TC-045",
+        "TC-061"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "Decision Table",
+        "Error Guessing",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-011",
+      "source": "Description - Validation",
+      "requirement": "Tenant onboarding progress shall persist between sessions.",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-011"
+      ],
+      "test_case_ids": [
+        "TC-020",
+        "TC-036",
+        "TC-038",
+        "TC-039",
+        "TC-040"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "Error Guessing",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-012",
+      "source": "Description - Navigation Refactor",
+      "requirement": "Region management and Site management are consolidated under the Tenant onboarding experience instead of disconnected pages.",
+      "risk_rating": "Medium",
+      "test_conditions": [
+        "TCOND-012"
+      ],
+      "test_case_ids": [
+        "TC-050"
+      ],
+      "levels": [
+        "UAT"
+      ],
+      "techniques": [
+        "Exploratory"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-013",
+      "source": "Description - UI/UX Workflow Navigation",
+      "requirement": "Onboarding visually guides the user through Tenant setup, Region setup and Site setup.",
+      "risk_rating": "Low",
+      "test_conditions": [
+        "TCOND-013"
+      ],
+      "test_case_ids": [
+        "TC-002",
+        "TC-006"
+      ],
+      "levels": [
+        "System"
+      ],
+      "techniques": [
+        "Exploratory",
+        "State Transition"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-014",
+      "source": "Description - UI/UX Component Reuse",
+      "requirement": "Existing Trilogy workflow/tab patterns are reused instead of new onboarding components.",
+      "risk_rating": "Low",
+      "test_conditions": [
+        "TCOND-014"
+      ],
+      "test_case_ids": [
+        "TC-005"
+      ],
+      "levels": [
+        "UAT"
+      ],
+      "techniques": [
+        "Exploratory"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-015",
+      "source": "Successor #1411893",
+      "requirement": "Sites must always belong to a Region; orphan Sites shall not exist.",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-015"
+      ],
+      "test_case_ids": [
+        "TC-043",
+        "TC-044",
+        "TC-045",
+        "TC-053"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "Decision Table",
+        "EP",
+        "Error Guessing"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-016",
+      "source": "Successor #1411893",
+      "requirement": "Duplicate Region names within the same Tenant shall not be allowed.",
+      "risk_rating": "Medium",
+      "test_conditions": [
+        "TCOND-016"
+      ],
+      "test_case_ids": [
+        "TC-046",
+        "TC-047",
+        "TC-048"
+      ],
+      "levels": [
+        "System"
+      ],
+      "techniques": [
+        "BVA",
+        "EP"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-017",
+      "source": "Successor #1411893",
+      "requirement": "Region contains Region Name, Trilogy Base URL/domain, Region Description; empty state message and Add Region action are shown when no Regions exist; nested Region/Site grid with expand/collapse.",
+      "risk_rating": "Medium",
+      "test_conditions": [
+        "TCOND-017"
+      ],
+      "test_case_ids": [
+        "TC-041",
+        "TC-042",
+        "TC-043",
+        "TC-049",
+        "TC-065"
+      ],
+      "levels": [
+        "System"
+      ],
+      "techniques": [
+        "BVA",
+        "EP"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-018",
+      "source": "Parent #1375449 (sibling US 1411909 Migration Support)",
+      "requirement": "Existing Tenants/Sites migrate to the Region architecture: existing Site mappings, Trilogy Base URL relationships and active Tenants preserved; no orphan Sites.",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-018"
+      ],
+      "test_case_ids": [
+        "TC-052",
+        "TC-053",
+        "TC-057"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "EP"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-019",
+      "source": "Parent #1375449 (sibling US 1411910 Permissions)",
+      "requirement": "Users with only View TGO Settings can view Tenant onboarding details and Region/Site hierarchy but cannot modify onboarding configuration, Regions or Sites.",
+      "risk_rating": "Medium",
+      "test_conditions": [
+        "TCOND-019"
+      ],
+      "test_case_ids": [
+        "TC-060",
+        "TC-061",
+        "TC-062"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "Decision Table",
+        "Error Guessing"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-020",
+      "source": "Wiki: Automation/TCS-Functional-Items/TGO/Connector-Configuration-and-Tenant-Onboarding",
+      "requirement": "An already existing Tenant cannot be created again.",
+      "risk_rating": "Medium",
+      "test_conditions": [
+        "TCOND-020"
+      ],
+      "test_case_ids": [
+        "TC-012",
+        "TC-014",
+        "TC-015"
+      ],
+      "levels": [
+        "System"
+      ],
+      "techniques": [
+        "BVA",
+        "EP",
+        "Error Guessing"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-021",
+      "source": "Wiki (Tenants tab + icon) / sibling US 1411909 (/tgo routing)",
+      "requirement": "Onboarding is launched from TGO (/tgo) > Tenants > + icon.",
+      "risk_rating": "Low",
+      "test_conditions": [
+        "TCOND-021"
+      ],
+      "test_case_ids": [
+        "TC-001",
+        "TC-004"
+      ],
+      "levels": [
+        "System"
+      ],
+      "techniques": [
+        "EP"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-022",
+      "source": "Wiki: Connector-Configuration-and-Tenant-Onboarding (Trilogy System > Tenant > Onboard)",
+      "requirement": "Tenants created in TGO are onboarded from the Trilogy platform (System > Tenant > Search by Trilogy Domain + Trilogy Go Domain > Onboard > Check Connectivity).",
+      "risk_rating": "High",
+      "test_conditions": [
+        "TCOND-022"
+      ],
+      "test_case_ids": [
+        "TC-054",
+        "TC-058",
+        "TC-059",
+        "TC-064"
+      ],
+      "levels": [
+        "Integration",
+        "System",
+        "UAT"
+      ],
+      "techniques": [
+        "EP",
+        "Exploratory"
+      ],
+      "covered": true
+    }
+  ],
+  "coverage": {
+    "by_type": {
+      "Positive": 28,
+      "Negative": 30,
+      "Boundary": 7
+    },
+    "by_level": {
+      "Component": 0,
+      "Integration": 12,
+      "System": 49,
+      "UAT": 4
+    },
+    "by_category": {
+      "Functional": 42,
+      "Security": 7,
+      "Performance": 1,
+      "Accessibility": 1,
+      "Compatibility": 0,
+      "Recovery": 3,
+      "API": 3,
+      "Database": 3,
+      "Usability": 5
+    },
+    "by_technique": {
+      "EP": 22,
+      "BVA": 6,
+      "Decision Table": 5,
+      "State Transition": 12,
+      "Pairwise": 0,
+      "Error Guessing": 13,
+      "Exploratory": 7
+    },
+    "by_requirement": [
+      {
+        "req_id": "REQ-001",
+        "case_count": 7
+      },
+      {
+        "req_id": "REQ-002",
+        "case_count": 8
+      },
+      {
+        "req_id": "REQ-003",
+        "case_count": 8
+      },
+      {
+        "req_id": "REQ-004",
+        "case_count": 8
+      },
+      {
+        "req_id": "REQ-005",
+        "case_count": 5
+      },
+      {
+        "req_id": "REQ-006",
+        "case_count": 7
+      },
+      {
+        "req_id": "REQ-007",
+        "case_count": 7
+      },
+      {
+        "req_id": "REQ-008",
+        "case_count": 9
+      },
+      {
+        "req_id": "REQ-009",
+        "case_count": 10
+      },
+      {
+        "req_id": "REQ-010",
+        "case_count": 8
+      },
+      {
+        "req_id": "REQ-011",
+        "case_count": 5
+      },
+      {
+        "req_id": "REQ-012",
+        "case_count": 1
+      },
+      {
+        "req_id": "REQ-013",
+        "case_count": 2
+      },
+      {
+        "req_id": "REQ-014",
+        "case_count": 1
+      },
+      {
+        "req_id": "REQ-015",
+        "case_count": 4
+      },
+      {
+        "req_id": "REQ-016",
+        "case_count": 3
+      },
+      {
+        "req_id": "REQ-017",
+        "case_count": 5
+      },
+      {
+        "req_id": "REQ-018",
+        "case_count": 3
+      },
+      {
+        "req_id": "REQ-019",
+        "case_count": 3
+      },
+      {
+        "req_id": "REQ-020",
+        "case_count": 3
+      },
+      {
+        "req_id": "REQ-021",
+        "case_count": 2
+      },
+      {
+        "req_id": "REQ-022",
+        "case_count": 4
+      }
+    ],
+    "examples_mapping_confirmed": true
+  },
+  "risk_coverage": {
+    "by_rating": {
+      "High": 30,
+      "Medium": 30,
+      "Low": 5
+    },
+    "high_risk_requirements": [
+      {
+        "req_id": "REQ-002",
+        "case_count": 8,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-003",
+        "case_count": 8,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-004",
+        "case_count": 8,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-005",
+        "case_count": 5,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-006",
+        "case_count": 7,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-009",
+        "case_count": 10,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-010",
+        "case_count": 8,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-011",
+        "case_count": 5,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-015",
+        "case_count": 4,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-018",
+        "case_count": 3,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-022",
+        "case_count": 4,
+        "covered": true
+      }
+    ]
+  },
+  "missing_requirements": [
+    "No explicit definition of 'onboarding completion' (minimum Regions/Sites, is a Finish/Complete action required?).",
+    "No field-level validation rules (max lengths, allowed characters, Trilogy Go Domain format, is Tenant Description mandatory?).",
+    "No definition of how Pending tenants behave in the Trilogy platform onboarding search, Service Activity Report and TGO Settings.",
+    "No rule for Active tenants whose last Region/Site is soft-deleted (revert to Pending or stay Active).",
+    "No audit/logging requirement for tenant creation and Pending -> Active transitions.",
+    "No performance NFR for the Regions/Sites step with large hierarchies.",
+    "No rule for Pending tenants that are abandoned (expiry/cleanup) or for deleting a Pending tenant."
+  ],
+  "ambiguous_requirements": [
+    {
+      "req_id": "REQ-004",
+      "issue": "'Onboarding completion' is not defined.",
+      "assumption_made": "At least one Region with at least one Site plus saved Tenant Information (A1/A4)."
+    },
+    {
+      "req_id": "REQ-008",
+      "issue": "'Consistent with current onboarding fields wherever possible' - validation rules not listed.",
+      "assumption_made": "Same mandatory markers/limits as the current Add Tenant form (A5); observed limits recorded during execution."
+    },
+    {
+      "req_id": "REQ-012",
+      "issue": "Unclear whether the standalone Sites page is removed, hidden or redirected.",
+      "assumption_made": "Region/Site management must be reachable from the tenant; any remaining standalone page must show the same hierarchy (no disconnected data)."
+    },
+    {
+      "req_id": "REQ-019",
+      "issue": "Permission story 1411910 is Ready for Development - read-only behaviour may not exist in this build.",
+      "assumption_made": "Cases kept; mark Blocked if the permission is not deployed."
+    },
+    {
+      "req_id": "REQ-022",
+      "issue": "Whether a Pending tenant can be found/onboarded from the Trilogy platform is not defined.",
+      "assumption_made": "Outcome recorded and raised to PO; TGO status must not become Active through the Trilogy side alone."
+    },
+    {
+      "req_id": "REQ-001",
+      "issue": "Edit of existing tenants - wizard vs non-wizard mode only visible in Task titles.",
+      "assumption_made": "Existing tenant edit uses free tab navigation (A3)."
+    }
+  ],
+  "exploratory_test_ideas": [
+    "Open the same new-tenant workflow in two browser tabs and Save & Next in both - check for duplicate Pending tenants.",
+    "Change the Trilogy Go Domain of a Pending tenant after Regions were added and check Region/Site data remains linked.",
+    "Soft-delete the only Site of a just-activated tenant and observe the status (see Missing Requirements).",
+    "Use browser Back/Forward repeatedly across the tabs after each Save & Next and look for stale forms or re-submissions.",
+    "Resume a Pending tenant after the build is redeployed (app restart) to confirm server-side persistence rather than local storage.",
+    "Try onboarding with very long Unicode tenant names (accents, emoji, RTL) and check list, workflow header and Activity Report rendering.",
+    "Check the Tenants list sort/filter by status with a mix of Pending and Active tenants."
+  ],
+  "change_log": {},
+  "discrepancies": [],
+  "warnings": [
+    "Live UI exploration disabled (story In Development): tab names, button labels (Save & Next, Complete/Finish), status labels and message texts are taken from the story wording and must be confirmed against the build.",
+    "API endpoints and DB/store names for tenant status are not documented in intake; API/Database cases describe the check generically (use browser DevTools / backend team to identify the call/record).",
+    "REQ-019 depends on US 1411910 (Ready for Development) - cases may be Blocked in this sprint.",
+    "Config output_file_basename was TGO_1445170_TestCases (stale, different story) - corrected to TGO_1407344_TestCases to avoid overwriting that workbook."
+  ],
+  "unresolved_artifacts": [
+    {
+      "ref": "PR 185578 (artifact link)",
+      "reason": "Pull request diff not reviewed - optional evidence only."
+    },
+    {
+      "ref": "ui_exploration",
+      "reason": "Disabled in config (story In Development); no live UI observations."
+    }
+  ]
+}

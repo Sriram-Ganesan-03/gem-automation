@@ -1,0 +1,169 @@
+{
+  "config": {
+    "argv": [
+      "/Users/anandasriram/.nvm/versions/node/v22.22.3/bin/node",
+      "/Users/anandasriram/Desktop/gem automation/ui/artifacts/node_modules/playwright/cli.js",
+      "test",
+      "--config=segment-creation.playwright.config.ts"
+    ],
+    "configFile": "/Users/anandasriram/Desktop/gem automation/ui/artifacts/segment-creation.playwright.config.ts",
+    "rootDir": "/Users/anandasriram/Desktop/gem automation/ui/artifacts/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/anandasriram/Desktop/gem automation/ui/artifacts/segment-creation-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/Users/anandasriram/Desktop/gem automation/ui/artifacts/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/segment-creation-smoke.spec.ts"
+        ],
+        "timeout": 120000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "segment-creation-playwright-report",
+          "open": "never"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "segment-creation-test-results/results.json"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "segment-creation-test-results/junit.xml"
+        }
+      ],
+      [
+        "list",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 4,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "specs/segment-creation-smoke.spec.ts",
+      "file": "specs/segment-creation-smoke.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "creates a Segment with audience conditions and verifies it in the listing",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 14005,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "steps": [
+                    {
+                      "title": "Open the direct login page",
+                      "duration": 6775
+                    },
+                    {
+                      "title": "Sign in and handle the existing-session confirmation",
+                      "duration": 3861
+                    },
+                    {
+                      "title": "Navigate to GEM Segment Management",
+                      "duration": 974
+                    },
+                    {
+                      "title": "Open the new Segment form and enter its details",
+                      "duration": 577
+                    },
+                    {
+                      "title": "Configure root and nested audience criteria",
+                      "duration": 368
+                    },
+                    {
+                      "title": "Calculate and verify the player count",
+                      "duration": 353
+                    },
+                    {
+                      "title": "Save the Segment and verify it in the listing",
+                      "duration": 621
+                    }
+                  ],
+                  "startTime": "2026-10-13T09:26:27.420Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/Users/anandasriram/Desktop/gem automation/ui/artifacts/segment-creation-test-results/specs-segment-creation-smo-63c08--verifies-it-in-the-listing/video.webm"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "01187370c244e7c3c2c9-3820ca98e8dbdb590b70",
+          "file": "specs/segment-creation-smoke.spec.ts",
+          "line": 5,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-13T09:26:26.357Z",
+    "duration": 15632.513,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

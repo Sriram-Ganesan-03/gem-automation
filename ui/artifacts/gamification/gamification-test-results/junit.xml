@@ -1,0 +1,11 @@
+<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="13.370701">
+<testsuite name="gamification-create.spec.ts" timestamp="2026-10-13T10:26:47.488Z" hostname="" tests="1" failures="0" skipped="0" time="12.434" errors="0">
+<testcase name="create a gamification game with two prizes" classname="gamification-create.spec.ts" time="12.434">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|gamification-create-create-94569-cation-game-with-two-prizes/video.webm]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+</testsuites>

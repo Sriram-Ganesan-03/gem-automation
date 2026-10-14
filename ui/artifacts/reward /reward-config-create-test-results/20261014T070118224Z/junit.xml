@@ -1,0 +1,15 @@
+<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="17.167822">
+<testsuite name="reward-config-create.spec.ts" timestamp="2026-10-14T07:01:18.374Z" hostname="" tests="1" failures="0" skipped="0" time="16.268" errors="0">
+<testcase name="Chickasaw Portal Reward Config create flow › creates and verifies a reward configuration" classname="reward-config-create.spec.ts" time="16.268">
+<properties>
+<property name="app-workaround" value="Rewrite the duplicated /v2/ segment in the reward-units API request.">
+</property>
+</properties>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../20261014T070118831Z/reward-config-create-Chick-a46c4-fies-a-reward-configuration/video.webm]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+</testsuites>

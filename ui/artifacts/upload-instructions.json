@@ -1,0 +1,33 @@
+{
+  "mode": "dry-run",
+  "project_mode": "existing",
+  "summary": "Generated one Playwright validation spec for the 'Max 10 Trilogy Domains' story and extended the existing Tenant form POM in place. No ADO branch or PR was created because run_mode is dry-run.",
+  "files": {
+    "modified_in_place": [
+      {
+        "path": "tests/locators/tenant-form.locators.ts",
+        "change": "Added 'duplicateDomainError' locator for the uniqueness/duplicate validation message."
+      },
+      {
+        "path": "tests/pages/tenant-form.page.ts",
+        "change": "Added getTrilogyDomainCount, fillTrilogyDomainsUpTo, setTrilogyDomainAt, isAddDomainDisabled, assertTrilogyDomainCount, assertAddDomainDisabled, assertDuplicateDomainError."
+      }
+    ],
+    "created": [
+      {
+        "path": "tests/specs/Admin.tenant-max-trilogy-domains-validation.spec.ts",
+        "change": "New spec: login + tenant selection, open Create form, add up to 10 unique domains, assert count=10 and '+' disabled, assert duplicate-domain error, cancel, sign out."
+      }
+    ]
+  },
+  "how_to_run": [
+    "pwsh ui/scripts/preflight-guardrails.ps1   # regenerates tests/config/test-config.ts and .env from workflow-input.current.json",
+    "npx playwright test tests/specs/Admin.tenant-max-trilogy-domains-validation.spec.ts --project=chromium",
+    "npx playwright show-report playwright-report"
+  ],
+  "self_healing_note": "self_healing is enabled (report-driven). After a real run produces test-results/results.json, invoke heal-tests.agent.md to repair any locator-driven failures (locators/ files only).",
+  "to_open_pr_when_ready": [
+    "Set run_mode to 'execute', provide reviewer_ado_user_id + target_repo, and set execution_confirmation to 'APPROVED_EXECUTE' in .github/ui/config/workflow-input.current.json.",
+    "Re-run the orchestrator to let create-ado-pr.agent.md create the branch, commit the tests, and open the ADO PR."
+  ]
+}

@@ -1,0 +1,6 @@
+<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="14.900321">
+<testsuite name="qualifier-create.spec.ts" timestamp="2026-10-13T10:08:58.303Z" hostname="" tests="1" failures="0" skipped="0" time="14.026" errors="0">
+<testcase name="saved qualifier has the requested details and rule" classname="qualifier-create.spec.ts" time="14.026">
+</testcase>
+</testsuite>
+</testsuites>

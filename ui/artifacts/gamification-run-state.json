@@ -1,0 +1,23 @@
+{
+  "run_date": "2026-10-13",
+  "application": "https://chickasaw-dev.playerhub.ai",
+  "scenario_source": "ui/input.txt",
+  "result": "passed",
+  "test_count": 1,
+  "passed": 1,
+  "failed": 0,
+  "created_game": {
+    "name": "this is for testing",
+    "prize_count": 2,
+    "prize_label": "this is for testing",
+    "prize_image_url": "https://placehold.co/300x200.png"
+  },
+  "artifacts": {
+    "spec": "tests/specs/gamification-create.spec.ts",
+    "html_report": "gamification-playwright-report/index.html",
+    "video": "gamification-test-results/gamification-create-create-94569-cation-game-with-two-prizes/video.webm",
+    "json_results": "gamification-test-results/results.json",
+    "junit_results": "gamification-test-results/junit.xml",
+    "summary": "gamification-create-run-report.md"
+  }
+}

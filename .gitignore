@@ -3,12 +3,12 @@
 !.env.example
 
 ui/env
-**/node_modules/
-**/artifacts/
-!ui/artifacts/
-ui/artifacts/*
-!ui/artifacts/tests/
-!ui/artifacts/tests/**
+# **/node_modules/
+# **/artifacts/
+# !ui/artifacts/
+# ui/artifacts/*
+# !ui/artifacts/tests/
+# !ui/artifacts/tests/**
 **/playwright-report/
 **/test-results/
 **/workflow-input.current.json

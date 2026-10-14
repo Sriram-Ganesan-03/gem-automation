@@ -1,0 +1,13 @@
+{
+  "mode": "dry-run",
+  "ado_pr_created": false,
+  "reason": "run_mode is dry-run and input_source is raw-file; no ADO branch/PR/work-item linking performed.",
+  "suggested_pr_title": "[UI Tests] Module Page Accessibility & Logout",
+  "suggested_branch": "ui-tests/module-page-accessibility-and-logout",
+  "source": {
+    "input_source": "raw-file",
+    "raw_input_file": ".github/ui/input.txt"
+  },
+  "suggested_pr_description": "Adds Playwright UI tests derived from .github/ui/input.txt (Page Accessibility Verification + Logout Functionality).\n\nNew specs:\n- tests/specs/module-page-accessibility.spec.ts (1 test, 8 steps across 7 sidebar modules)\n- tests/specs/logout-functionality.spec.ts (2 tests: signout redirect + back-button)\n\nNew page objects: tenants, geo-fence, manage-service-endpoints.\nModified: sites/manage-devices/activity-report (assertAccessible), multi-tenant-dashboard (logout), login (navigateBack), shared-components locators (profile/signout).\n\nKnown issues:\n- Users/Roles/IP Restrictions modules are not present in the app navigation and were omitted.\n- Post-logout back-button behaviour is environment-dependent (cached shell / SSO auto-restore).",
+  "note": "To open the PR, set run_mode=execute, execution_confirmation=APPROVED_EXECUTE, and provide real target_repo and reviewer_ado_user_id, then re-run the orchestrator."
+}

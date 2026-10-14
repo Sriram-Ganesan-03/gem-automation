@@ -1,0 +1,66 @@
+{
+  "run_id": "ui-2026-08-19-tenant-max-domains",
+  "run_mode": "dry-run",
+  "input_source": "raw-file",
+  "raw_input_file": ".github/ui/input.txt",
+  "project_root": "D:/EveriTools/loyalty-connector-automation",
+  "test_dir": "tests",
+  "playwright_project_mode": "existing",
+  "playwright_config_path": "playwright.config.ts",
+  "app_base_url": "https://trilogy-go-qa01.purplecheckpoint.com/tgo",
+  "scope": "Validation of Region Tenant — Max 10 Trilogy Domains (limit + uniqueness) + Logout",
+  "api_layer": "skipped-by-user",
+  "self_healing": "report-driven (not run during dry-run orchestration)",
+  "story_title": "Validation of Region Tenant — Max 10 Trilogy Domains",
+  "generated": {
+    "new_page_objects": [],
+    "modified_page_objects": [
+      "tests/pages/tenant-form.page.ts"
+    ],
+    "modified_locators": [
+      "tests/locators/tenant-form.locators.ts"
+    ],
+    "new_specs": [
+      { "file": "tests/specs/Admin.tenant-max-trilogy-domains-validation.spec.ts", "test_count": 1 }
+    ]
+  },
+  "reused_existing_pom": [
+    "tests/pages/login.page.ts",
+    "tests/pages/multi-tenant-selection-dialog.page.ts",
+    "tests/pages/dashboard.page.ts",
+    "tests/pages/multi-tenant-dashboard.page.ts",
+    "tests/pages/tenants.page.ts",
+    "tests/pages/tenant-form.page.ts"
+  ],
+  "additions": {
+    "tenant-form.page.ts": [
+      "getTrilogyDomainCount()",
+      "fillTrilogyDomainsUpTo()",
+      "setTrilogyDomainAt()",
+      "isAddDomainDisabled()",
+      "assertTrilogyDomainCount()",
+      "assertAddDomainDisabled()",
+      "assertDuplicateDomainError()"
+    ],
+    "tenant-form.locators.ts": [
+      "duplicateDomainError"
+    ]
+  },
+  "report_locations": {
+    "html": "playwright-report/index.html",
+    "json": "test-results/results.json",
+    "junit": "test-results/junit.xml"
+  },
+  "conversion_warnings": [
+    "Add-domain '+' disabled-state detection uses a generic ancestor check (disabled attr / aria-disabled / disabled class / pointer-events:none). Confirm against the live DOM on first run and pin the exact selector if it differs.",
+    "Duplicate-domain validation copy is matched with /duplicate|same|unique/i (TenantFormLocators.duplicateDomainError). Verify the actual error text and tighten the regex.",
+    "The tenant is never saved (Cancel at the end), so the test creates no data; a unique tenant name is generated only to satisfy required fields.",
+    "Self-healing is report-driven; not executed during dry-run orchestration. Run the suite with the JSON reporter, then invoke heal-tests if locators break.",
+    "No API/hybrid stage (api_layer.enabled=false), so no hybrid.fixture.ts registration changes."
+  ],
+  "guardrails": {
+    "live_app_analysis": "not performed (dry-run); reused verified existing POM.",
+    "ado": "read-only; no work items or PRs mutated (dry-run)."
+  },
+  "pr": null
+}

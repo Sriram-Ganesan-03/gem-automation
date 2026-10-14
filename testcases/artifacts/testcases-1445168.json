@@ -1,0 +1,3908 @@
+{
+  "story_id": 1445168,
+  "story_title": "Enhance and Version Receipt Content Ingestion API",
+  "authoring_phase": "development",
+  "requirements": [
+    {
+      "req_id": "REQ-001",
+      "source": "[Work Item AC] AC1",
+      "text": "Endpoint accepts fully generated receipt HTML from Trilogy without receipt variables, associates it with property, player, receipt and module identifiers, and rejects missing/invalid HTML with the standard validation response."
+    },
+    {
+      "req_id": "REQ-002",
+      "source": "[Work Item AC] AC2; Description 'Required request data'",
+      "text": "Request supports all fields required to store/display/list/deliver/update the receipt; required fields validated before acceptance; each Receipt ID identifies one receipt; multi-receipt offers supply one Receipt ID per receipt."
+    },
+    {
+      "req_id": "REQ-003",
+      "source": "[Work Item AC] AC3",
+      "text": "Request identifies issuance type (Digital | Printed); both share common identification/lifecycle fields; type is passed to storage and receipt-list processing; printed never classified as digitally delivered."
+    },
+    {
+      "req_id": "REQ-004",
+      "source": "[Work Item AC] AC4; Description",
+      "text": "Printed receipt HTML + metadata accepted (including deliveryMethod None), handed to Loyalty Cloud storage, and does not automatically trigger email or SMS; visible in receipt list only under Technical Setting 'All Receipts'."
+    },
+    {
+      "req_id": "REQ-005",
+      "source": "[Work Item AC] AC5",
+      "text": "Digital receipt can request Email, SMS, Both or None; requested delivery method is passed to downstream notification processing."
+    },
+    {
+      "req_id": "REQ-006",
+      "source": "[Work Item AC] AC6",
+      "text": "Request supports receipt status Issued/Redeemed/Voided, status transaction date and expiration date; invalid statuses or dates are rejected."
+    },
+    {
+      "req_id": "REQ-007",
+      "source": "[Work Item AC] AC7",
+      "text": "Existing supported promotion-receipt integrations keep working; incompatible changes require a new API version; callers are not forced onto an incompatible contract."
+    },
+    {
+      "req_id": "REQ-008",
+      "source": "[Work Item AC] AC8",
+      "text": "Request identifies the source Trilogy module; no Venetian-specific processing; supports OfferMaker, legacy promotions and other enabled modules; participation controlled by enablement configuration."
+    },
+    {
+      "req_id": "REQ-009",
+      "source": "[Work Item AC] AC9",
+      "text": "Valid request handed to #1365562 storage; approved success response only after acceptance; no success when validation fails; failures carry correlation information."
+    },
+    {
+      "req_id": "REQ-010",
+      "source": "Wiki: Receipt Content Ingestion & Status Update API",
+      "text": "Route /{siteId}/api/v1/player/receipt (POST) with required headers x-evri-meta and x-evri-tenantid; documented responses 200, TGO-CNT014 Invalid Tenant, TGO-CNT027 Invalid Meta, TGO-CNT035 Receipt already exists, TGO-CNT040 transaction date after expiration, TGO-CNT034 missing required fields."
+    },
+    {
+      "req_id": "REQ-011",
+      "source": "Comment #13585124 (QA observations, 2026-09-29)",
+      "text": "Requests must be authenticated (success observed without Signature); x-evri-meta format must be confirmed ('PlayerId;' vs 'PlayerId;ModuleIdentifier;ModuleRecordIdentifier'); meta without ';' returns invalid meta; Invalid Tenant and Invalid Meta must return distinct error codes."
+    },
+    {
+      "req_id": "REQ-012",
+      "source": "Wiki: Receipt Content Ingestion & Status Update API (shared route)",
+      "text": "Ingestion and status update (#1445170) share POST /{siteId}/api/v1/player/receipt; an ingestion request must never be processed as a status update and vice versa."
+    },
+    {
+      "req_id": "REQ-013",
+      "source": "[Work Item AC] Dependencies and boundaries",
+      "text": "This item does not send notifications and does not return the player's receipt list; storage (#1365562), notifications (#1349857) and list (#1445171) consume the accepted data."
+    },
+    {
+      "req_id": "REQ-014",
+      "source": "Description; AC9 (implied NFR)",
+      "text": "Ingestion is reliable under concurrency/retries and dependency failures, performs acceptably at Trilogy volumes, and logs accepted/rejected requests with correlation info without leaking sensitive content."
+    },
+    {
+      "req_id": "REQ-015",
+      "source": "Parent Feature #1320913; Successor #1470255",
+      "text": "End-to-end: a Trilogy/OfferMaker receipt generated at the kiosk (digital or printed) is ingested into Connector and becomes available to downstream storage/list services."
+    }
+  ],
+  "analysis": {
+    "business_rules": [
+      "BR-1: Trilogy sends fully generated, translated receipt HTML; Connector never constructs HTML or needs receipt variables (AC1).",
+      "BR-2: One Receipt ID = one receipt; an offer producing N receipts sends N distinct Receipt IDs (AC2).",
+      "BR-3: A Receipt ID that already exists is rejected with TGO-CNT035 (Wiki).",
+      "BR-4: issuanceType is Digital or Printed; a Printed receipt is never treated as digitally delivered (AC3).",
+      "BR-5: Printed receipts may use deliveryMethod None and never auto-trigger email/SMS (AC4).",
+      "BR-6: deliveryMethod is Email, SMS, Both or None and is passed to notification processing (AC5).",
+      "BR-7: receiptStatus is Issued, Redeemed or Voided; transactionDate must not be after expirationDate (AC6, Wiki TGO-CNT040).",
+      "BR-8: Printed receipts are returned by the receipt-list API only when the property's Technical Setting is 'All Receipts' (Description).",
+      "BR-9: Module participation is controlled by enablement configuration; no property-specific (Venetian) logic (AC8).",
+      "BR-10: Success is returned only after the receipt is accepted for storage; validation failures never return success (AC9)."
+    ],
+    "functional_requirements": [
+      "Authenticated POST /{siteId}/api/v1/player/receipt with x-evri-tenantid and x-evri-meta headers.",
+      "Required-field validation (receiptIdentifier, moduleIdentifier, templateName, receiptHtml, issuanceType, deliveryMethod, receiptStatus, transactionDate, expirationDate) -> TGO-CNT034.",
+      "Enumerated value validation for issuanceType, deliveryMethod, receiptStatus.",
+      "Date validation and transactionDate <= expirationDate rule.",
+      "Duplicate Receipt ID rejection (TGO-CNT035).",
+      "Hand-off of accepted receipt (HTML + metadata + issuance type + delivery method) to storage #1365562.",
+      "Backward compatibility / API versioning of the existing receipt/Distribute Voucher integration."
+    ],
+    "non_functional_requirements": [
+      "Security: tenant/meta/signature authentication, tenant and player isolation, injection resistance, no sensitive data in errors/logs.",
+      "Reliability/Recovery: no false success, retry-safe (duplicate retries do not create a second receipt), concurrency-safe.",
+      "Performance: sustained ingestion throughput and large-HTML payloads (SLA and max size not specified).",
+      "Supportability: correlation information on failures; auditable request outcomes."
+    ],
+    "dependencies": [
+      "#1365562 Store Player Receipt Content and Metadata (persists receipt, creates short Receipt URL).",
+      "#1349857 Prepare and Deliver Digital Receipt Notifications (consumes deliveryMethod).",
+      "#1445171 Expose Player Receipt List API (consumes issuance type, status, metadata; Technical Setting Digital Only / All Receipts).",
+      "#1445170 Receipt Status Update (shares the same route).",
+      "#1470255 Post Redeem Offer - Ingest Player Receipt to TCS (Trilogy caller).",
+      "Module enablement configuration; Content Service error-code catalogue (Wiki 169844)."
+    ],
+    "constraints": [
+      "Single route /{siteId}/api/v1/player/receipt, v1, POST, shared with status update.",
+      "Player identity is carried by x-evri-meta; property by {siteId} and x-evri-tenantid (no playerId/propertyId in the documented body).",
+      "This item does not persist directly, send notifications, or return the receipt list (per AC boundaries)."
+    ],
+    "assumptions": [
+      "All documented body fields except description are required (wiki sample shows description as \"\").",
+      "Enum values are case-sensitive as documented: Digital/Printed, Email/SMS/Both/None, Issued/Redeemed/Voided.",
+      "transactionDate equal to expirationDate is accepted; only strictly-after returns TGO-CNT040 (same as #1445170 baseline).",
+      "Validation errors not listed in the wiki (invalid enum, invalid HTML, invalid date format) return 400 in the standard Connector error format; the exact code is to be confirmed.",
+      "x-evri-meta 'PlayerId;' is the currently implemented format pending Dev confirmation (Comment #13585124).",
+      "Receipt ID uniqueness scope is per tenant/site (to be confirmed)."
+    ],
+    "test_conditions": [
+      {
+        "id": "TCOND-001",
+        "req_id": "REQ-001",
+        "text": "Full receipt HTML accepted, stored verbatim and associated with site, player, receipt and module identifiers.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-002",
+        "req_id": "REQ-001",
+        "text": "Missing, empty, invalid or oversized receipt HTML rejected with the standard validation response.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-003",
+        "req_id": "REQ-002",
+        "text": "Required metadata validated before acceptance; no partial records on failure.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-004",
+        "req_id": "REQ-002",
+        "text": "Receipt ID uniqueness and one-ID-per-receipt for multi-receipt offers.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-005",
+        "req_id": "REQ-002",
+        "text": "Field type, length and extra-field boundaries.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-006",
+        "req_id": "REQ-003",
+        "text": "Issuance type Digital/Printed accepted, stored and propagated; invalid values rejected.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-007",
+        "req_id": "REQ-003",
+        "text": "Printed receipt never classified as digital; list visibility follows Technical Setting.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-008",
+        "req_id": "REQ-004",
+        "text": "Printed receipt with deliveryMethod None accepted, stored, and no email/SMS triggered.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-009",
+        "req_id": "REQ-005",
+        "text": "Delivery methods Email/SMS/Both/None accepted and propagated; invalid values rejected.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-010",
+        "req_id": "REQ-006",
+        "text": "Status values Issued/Redeemed/Voided accepted; invalid values rejected.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-011",
+        "req_id": "REQ-006",
+        "text": "Transaction/expiration date validity, precision, timezone and ordering (TGO-CNT040).",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-012",
+        "req_id": "REQ-007",
+        "text": "Existing promotion-receipt integrations unaffected; versioning rules honoured.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-013",
+        "req_id": "REQ-008",
+        "text": "Module identification, module enablement and property-agnostic processing.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-014",
+        "req_id": "REQ-009",
+        "text": "Hand-off to storage; success only after acceptance; no false success; correlation info on failure.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-015",
+        "req_id": "REQ-010",
+        "text": "Tenant/meta headers, site scoping and documented error codes honoured.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-016",
+        "req_id": "REQ-011",
+        "text": "Signature authentication enforced; meta format variants; distinct tenant vs meta errors.",
+        "risk_rating": "High"
+      },
+      {
+        "id": "TCOND-017",
+        "req_id": "REQ-012",
+        "text": "Shared route never confuses ingestion with status update.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-018",
+        "req_id": "REQ-013",
+        "text": "Ingestion itself sends no notification and returns no receipt list.",
+        "risk_rating": "Low"
+      },
+      {
+        "id": "TCOND-019",
+        "req_id": "REQ-014",
+        "text": "Concurrency, retry, dependency outage, throughput and logging behaviour.",
+        "risk_rating": "Medium"
+      },
+      {
+        "id": "TCOND-020",
+        "req_id": "REQ-015",
+        "text": "Kiosk redemption in Trilogy results in a stored, listable receipt in Loyalty Cloud.",
+        "risk_rating": "High"
+      }
+    ]
+  },
+  "test_cases": [
+    {
+      "test_case_id": "TC-001",
+      "title": "TGO - AC1 - Digital Receipt With Full HTML Ingested Returns 200",
+      "scenario": "AC1 - Digital Receipt With Full HTML Ingested Returns 200",
+      "test_condition": "Full receipt HTML accepted, stored verbatim and associated with site, player, receipt and module identifiers.",
+      "test_condition_id": "TCOND-001",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Receipt ID R-D1 does not exist.",
+      "test_data": "POST /S1/api/v1/player/receipt; headers x-evri-tenantid=<valid tenant>, x-evri-meta=<valid meta for P1, e.g. 1234787;>, Content-Type=application/json; body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with receiptIdentifier=R-D1",
+      "req_ids": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC1; Wiki",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the POST request with valid headers and the full body for R-D1.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for R-D1 (site, player, moduleIdentifier, templateName, description, receiptHtml, issuanceType, deliveryMethod, receiptStatus, transactionDate, expirationDate).",
+          "expected_result": "HTTP 200 'Receipt ingested successfully.'; exactly one row exists for R-D1 linked to site S1, player P1 (from x-evri-meta) and the supplied moduleIdentifier, with every body field stored as sent. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-002",
+      "title": "TGO - AC1 - Receipt HTML Stored Verbatim Without Variable Substitution",
+      "scenario": "AC1 - Receipt HTML Stored Verbatim Without Variable Substitution",
+      "test_condition": "Full receipt HTML accepted, stored verbatim and associated with site, player, receipt and module identifiers.",
+      "test_condition_id": "TCOND-001",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Database",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with receiptHtml = '<html><body><h1>Recibo</h1><p>Bienvenido José – ¡Gracias! 100% €5.00</p><p>{PlayerName} {{OfferValue}}</p><img src=\"https://cdn.example/logo.png\"/></body></html>' (translated text, UTF-8 characters, literal brace tokens)",
+      "req_ids": [
+        "REQ-001"
+      ],
+      "source": "[Work Item AC] AC1; Description",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request with the translated, UTF-8 HTML containing literal brace tokens.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Read receiptHtml for the receipt from ModuleReceiptContent and compare it byte-for-byte with the request value.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Check the request/response and Connector logs for any variable resolution or template rendering activity.",
+          "expected_result": "HTTP 200 'Receipt ingested successfully.'; stored receiptHtml is identical to the input (no encoding loss of José/¡/€, literal {PlayerName} and {{OfferValue}} left untouched, no HTML escaping or rewriting); Connector performs no variable lookup or HTML construction. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-003",
+      "title": "TGO - AC1 - Missing receiptHtml Returns TGO-CNT034",
+      "scenario": "AC1 - Missing receiptHtml Returns TGO-CNT034",
+      "test_condition": "Missing, empty, invalid or oversized receipt HTML rejected with the standard validation response.",
+      "test_condition_id": "TCOND-002",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with the receiptHtml property removed",
+      "req_ids": [
+        "REQ-001",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC1; Wiki TGO-CNT034",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request without the receiptHtml property.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receiptIdentifier used.",
+          "expected_result": "HTTP 400 Bad Request in the standard Connector error format (errorCode + message) with errorCode TGO-CNT034 (missing required fields) naming receiptHtml; no row is created in ModuleReceiptContent and nothing is handed to storage/notification processing. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-004",
+      "title": "TGO - AC1 - Empty Whitespace And Null receiptHtml Rejected",
+      "scenario": "AC1 - Empty Whitespace And Null receiptHtml Rejected",
+      "test_condition": "Missing, empty, invalid or oversized receipt HTML rejected with the standard validation response.",
+      "test_condition_id": "TCOND-002",
+      "type": "Boundary",
+      "test_level": "Integration",
+      "technique": "BVA",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with receiptHtml = \"\" | \"   \" | null (new receiptIdentifier per request)",
+      "req_ids": [
+        "REQ-001"
+      ],
+      "source": "[Work Item AC] AC1",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the request with receiptHtml = \"\".",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the request with receiptHtml = \"   \" (whitespace only).",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send the request with receiptHtml = null.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Query ModuleReceiptContent for the three receiptIdentifiers.",
+          "expected_result": "Each request returns HTTP 400 Bad Request in the standard Connector error format (errorCode + message) (TGO-CNT034 or the approved validation code) - never 200; no rows exist for any of the three receipt IDs. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-005",
+      "title": "TGO - AC1 - Invalid Or Non-HTML receiptHtml Rejected",
+      "scenario": "AC1 - Invalid Or Non-HTML receiptHtml Rejected",
+      "test_condition": "Missing, empty, invalid or oversized receipt HTML rejected with the standard validation response.",
+      "test_condition_id": "TCOND-002",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "API",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "receiptHtml variants: 'Thank you' (plain text) | '<html><body><p>unclosed' (malformed) | 'PGh0bWw+' (base64) | {\"html\":\"<p>x</p>\"} (object) | [\"<p>x</p>\"] (array)",
+      "req_ids": [
+        "REQ-001"
+      ],
+      "source": "[Work Item AC] AC1",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send one ingestion request per invalid receiptHtml variant, each with a new receiptIdentifier.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Record status code and error body for each response.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query ModuleReceiptContent for the receipt IDs used.",
+          "expected_result": "Object/array values are rejected with HTTP 400 Bad Request in the standard Connector error format (errorCode + message); plain text/malformed/base64 values are handled per the approved definition of 'invalid receipt HTML' (rejected with the standard validation response, never a 5xx); no row exists for any rejected request. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-006",
+      "title": "TGO - AC1 - Large Receipt HTML Size Boundaries",
+      "scenario": "AC1 - Large Receipt HTML Size Boundaries",
+      "test_condition": "Missing, empty, invalid or oversized receipt HTML rejected with the standard validation response.",
+      "test_condition_id": "TCOND-002",
+      "type": "Boundary",
+      "test_level": "Integration",
+      "technique": "BVA",
+      "category": "API",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Maximum accepted request/HTML size confirmed with Dev (not documented).",
+      "test_data": "receiptHtml sizes: 1 KB, 100 KB, 1 MB, configured max, max + 1 byte (new receiptIdentifier each)",
+      "req_ids": [
+        "REQ-001",
+        "REQ-014"
+      ],
+      "source": "[Work Item AC] AC1; Description",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send ingestion requests with receiptHtml of 1 KB, 100 KB and 1 MB.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send a request with receiptHtml exactly at the configured maximum size.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send a request with receiptHtml one byte over the maximum size.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Compare stored receiptHtml length with the sent length for accepted requests.",
+          "expected_result": "Requests up to and including the maximum return HTTP 200 'Receipt ingested successfully.' and store the full HTML without truncation; max + 1 returns a controlled 4xx (400/413) in the standard error format - never a 5xx or a silently truncated record. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-007",
+      "title": "TGO - AC1 - Script And Event Handler Content In receiptHtml Handled Safely",
+      "scenario": "AC1 - Script And Event Handler Content In receiptHtml Handled Safely",
+      "test_condition": "Missing, empty, invalid or oversized receipt HTML rejected with the standard validation response.",
+      "test_condition_id": "TCOND-002",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "receiptHtml = '<html><body><script>alert(1)</script><img src=x onerror=alert(2)><a href=\"javascript:alert(3)\">x</a></body></html>'",
+      "req_ids": [
+        "REQ-001",
+        "REQ-014"
+      ],
+      "source": "[Work Item AC] AC1; Error Guessing",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request with the script-bearing receiptHtml.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Inspect the response and Connector logs.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "If accepted, open the stored receipt through the short Receipt URL (#1365562) in a browser.",
+          "expected_result": "Request is either rejected with the standard validation response or accepted per the approved content policy; no server error, the payload is not executed server-side, and the hosted receipt does not execute script in the player's browser (sanitised or CSP-blocked) - otherwise log a defect."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-008",
+      "title": "TGO - AC2 - Each Required Field Missing Returns TGO-CNT034",
+      "scenario": "AC2 - Each Required Field Missing Returns TGO-CNT034",
+      "test_condition": "Required metadata validated before acceptance; no partial records on failure.",
+      "test_condition_id": "TCOND-003",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with exactly one field removed per request (new receiptIdentifier per request except step 1)",
+      "req_ids": [
+        "REQ-002",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC2; Wiki TGO-CNT034",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the request without receiptIdentifier.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the request without moduleIdentifier.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send the request without templateName.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Send the request without issuanceType.",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Send the request without deliveryMethod.",
+          "expected_result": ""
+        },
+        {
+          "index": 6,
+          "action": "Send the request without receiptStatus.",
+          "expected_result": ""
+        },
+        {
+          "index": 7,
+          "action": "Send the request without transactionDate.",
+          "expected_result": ""
+        },
+        {
+          "index": 8,
+          "action": "Send the request without expirationDate.",
+          "expected_result": ""
+        },
+        {
+          "index": 9,
+          "action": "Query ModuleReceiptContent for all receipt IDs used.",
+          "expected_result": "Every request returns HTTP 400 Bad Request in the standard Connector error format (errorCode + message) with errorCode TGO-CNT034 and a message identifying the missing field; no row is created in ModuleReceiptContent and nothing is handed to storage/notification processing for any of the requests. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-009",
+      "title": "TGO - AC2 - Optional Description Empty Or Absent Accepted",
+      "scenario": "AC2 - Optional Description Empty Or Absent Accepted",
+      "test_condition": "Required metadata validated before acceptance; no partial records on failure.",
+      "test_condition_id": "TCOND-003",
+      "type": "Boundary",
+      "test_level": "Integration",
+      "technique": "BVA",
+      "category": "API",
+      "priority": 3,
+      "severity": "Low",
+      "risk_rating": "Low",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with description = \"\" (request A) and description omitted (request B)",
+      "req_ids": [
+        "REQ-002"
+      ],
+      "source": "[Work Item AC] AC2; Wiki sample body",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send request A with description = \"\".",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send request B without the description property.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query ModuleReceiptContent for both receipts.",
+          "expected_result": "Both return HTTP 200 'Receipt ingested successfully.' (description is optional per wiki sample) and are stored with an empty/null description; if the contract makes description mandatory, request B returns TGO-CNT034 - confirm and record. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-010",
+      "title": "TGO - AC2 - Validation Runs Before Acceptance With No Partial Record",
+      "scenario": "AC2 - Validation Runs Before Acceptance With No Partial Record",
+      "test_condition": "Required metadata validated before acceptance; no partial records on failure.",
+      "test_condition_id": "TCOND-003",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Database",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Notification queue/records for #1349857 observable.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with valid receiptHtml but issuanceType = \"Unknown\" and transactionDate after expirationDate",
+      "req_ids": [
+        "REQ-002",
+        "REQ-009"
+      ],
+      "source": "[Work Item AC] AC2; AC9",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Note the current row count in ModuleReceiptContent for player P1.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the ingestion request containing multiple validation errors.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Re-check the row count and search for the receiptIdentifier.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Check notification processing for any record for this receiptIdentifier.",
+          "expected_result": "HTTP 400 Bad Request in the standard Connector error format (errorCode + message) (single consistent error or list of errors) is returned; row count unchanged, no partially stored HTML/metadata, and no notification record is created."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-011",
+      "title": "TGO - AC2 - Duplicate receiptIdentifier Returns TGO-CNT035",
+      "scenario": "AC2 - Duplicate receiptIdentifier Returns TGO-CNT035",
+      "test_condition": "Receipt ID uniqueness and one-ID-per-receipt for multi-receipt offers.",
+      "test_condition_id": "TCOND-004",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Receipt R-D1 already ingested (TC-001).",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with receiptIdentifier=R-D1 and a different description/receiptHtml",
+      "req_ids": [
+        "REQ-002",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC2; Wiki TGO-CNT035",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send a second ingestion request reusing receiptIdentifier R-D1 with different content.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for R-D1.",
+          "expected_result": "HTTP 400 Bad Request in the standard Connector error format (errorCode + message) with errorCode TGO-CNT035 'Receipt already exists'; the original R-D1 row is unchanged (content, status, dates) and no second row exists. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-012",
+      "title": "TGO - AC2 - Offer Producing Multiple Receipts Stores Each Receipt Individually",
+      "scenario": "AC2 - Offer Producing Multiple Receipts Stores Each Receipt Individually",
+      "test_condition": "Receipt ID uniqueness and one-ID-per-receipt for multi-receipt offers.",
+      "test_condition_id": "TCOND-004",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. An offer O1 configured to produce three receipts for P1.",
+      "test_data": "Three requests with the same description/moduleIdentifier/templateName for offer O1 and receiptIdentifier R-M1, R-M2, R-M3 with distinct receiptHtml",
+      "req_ids": [
+        "REQ-002"
+      ],
+      "source": "[Work Item AC] AC2; Description",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request for R-M1.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the ingestion request for R-M2.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send the ingestion request for R-M3.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Query ModuleReceiptContent for player P1 and offer O1.",
+          "expected_result": "All three requests return HTTP 200 'Receipt ingested successfully.'; three separate rows exist (R-M1, R-M2, R-M3), each holding its own receiptHtml and metadata, with no merging or overwriting. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-013",
+      "title": "TGO - AC2 - Multi-Receipt Offer Reusing A Receipt ID Rejected",
+      "scenario": "AC2 - Multi-Receipt Offer Reusing A Receipt ID Rejected",
+      "test_condition": "Receipt ID uniqueness and one-ID-per-receipt for multi-receipt offers.",
+      "test_condition_id": "TCOND-004",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. R-M1 ingested for offer O1 (TC-012).",
+      "test_data": "Second receipt of offer O1 sent with receiptIdentifier=R-M1 and different receiptHtml",
+      "req_ids": [
+        "REQ-002",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC2",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the second receipt of offer O1 reusing receiptIdentifier R-M1.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for R-M1.",
+          "expected_result": "HTTP 400 Bad Request in the standard Connector error format (errorCode + message) TGO-CNT035; R-M1 retains its original HTML - the second receipt is not merged into or overwriting the first. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-014",
+      "title": "TGO - AC2 - Same Receipt ID Under Another Tenant Or Player Is Isolated",
+      "scenario": "AC2 - Same Receipt ID Under Another Tenant Or Player Is Isolated",
+      "test_condition": "Receipt ID uniqueness and one-ID-per-receipt for multi-receipt offers.",
+      "test_condition_id": "TCOND-004",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. R-D1 exists for P1 on site S1; valid headers available for tenant/site S2 and player P2.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with receiptIdentifier=R-D1 sent (a) as P2 on S1 and (b) as P2 on S2",
+      "req_ids": [
+        "REQ-002",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC2; Error Guessing",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request for R-D1 as player P2 on site S1.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the ingestion request for R-D1 as player P2 on site S2.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query ModuleReceiptContent for R-D1 across sites/players.",
+          "expected_result": "Each request is accepted or rejected (TGO-CNT035) according to the approved Receipt ID uniqueness scope; in no case is P1's R-D1 row on S1 overwritten or re-associated to P2/S2."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-015",
+      "title": "TGO - AC2 - receiptIdentifier Length And Character Boundaries",
+      "scenario": "AC2 - receiptIdentifier Length And Character Boundaries",
+      "test_condition": "Field type, length and extra-field boundaries.",
+      "test_condition_id": "TCOND-005",
+      "type": "Boundary",
+      "test_level": "Integration",
+      "technique": "BVA",
+      "category": "API",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Max receiptIdentifier length (DB column) confirmed with Dev.",
+      "test_data": "receiptIdentifier = 'A' (1 char) | max length | max + 1 | ' OFFR-R1 ' (padded) | 'OFFR/R#1?%' (special chars) | 'ÜNICODE-1'",
+      "req_ids": [
+        "REQ-002"
+      ],
+      "source": "[Work Item AC] AC2",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send ingestion requests with a 1-character and a max-length receiptIdentifier.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send an ingestion request with a max + 1 length receiptIdentifier.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send requests with padded, special-character and Unicode receiptIdentifiers.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Query ModuleReceiptContent for all accepted IDs.",
+          "expected_result": "1-char and max-length IDs return HTTP 200 'Receipt ingested successfully.' and are stored exactly; max + 1 returns HTTP 400 Bad Request in the standard Connector error format (errorCode + message) (no truncation, no 5xx); padded/special/Unicode IDs are either stored exactly or rejected consistently per contract. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-016",
+      "title": "TGO - AC2 - Wrong Data Types Rejected",
+      "scenario": "AC2 - Wrong Data Types Rejected",
+      "test_condition": "Field type, length and extra-field boundaries.",
+      "test_condition_id": "TCOND-005",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "receiptIdentifier=12345 (number) | issuanceType=1 | deliveryMethod=true | transactionDate=1759344917 (epoch number) | expirationDate={} | templateName=[\"t\"]",
+      "req_ids": [
+        "REQ-002",
+        "REQ-006"
+      ],
+      "source": "[Work Item AC] AC2",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send one ingestion request per wrong-type field value.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Record the status code and error body for each.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query ModuleReceiptContent for the receipt IDs used.",
+          "expected_result": "Each request returns HTTP 400 Bad Request in the standard Connector error format (errorCode + message) identifying the invalid field (no 5xx, no stack trace); no rows stored. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-017",
+      "title": "TGO - AC2 - Unknown Body Fields Cannot Override Player Or Site",
+      "scenario": "AC2 - Unknown Body Fields Cannot Override Player Or Site",
+      "test_condition": "Field type, length and extra-field boundaries.",
+      "test_condition_id": "TCOND-005",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Player P2 exists on site S1.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} plus extra properties \"playerId\":\"<P2>\", \"siteId\":\"S2\", \"id\":999",
+      "req_ids": [
+        "REQ-002",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC2; Error Guessing",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request as P1 (x-evri-meta) with extra playerId/siteId/id properties in the body.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receiptIdentifier.",
+          "expected_result": "Request is either rejected (HTTP 400 Bad Request in the standard Connector error format (errorCode + message)) or accepted with extra fields ignored; the stored receipt belongs to P1 on S1 (from headers/route), never to P2/S2, and no client-supplied primary key is used."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-018",
+      "title": "TGO - AC3 - Printed Receipt Ingested With issuanceType Printed",
+      "scenario": "AC3 - Printed Receipt Ingested With issuanceType Printed",
+      "test_condition": "Issuance type Digital/Printed accepted, stored and propagated; invalid values rejected.",
+      "test_condition_id": "TCOND-006",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Receipt ID R-P1 does not exist.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with receiptIdentifier=R-P1, issuanceType=\"Printed\", deliveryMethod=\"None\"",
+      "req_ids": [
+        "REQ-003",
+        "REQ-004"
+      ],
+      "source": "[Work Item AC] AC3; AC4",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request for printed receipt R-P1.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for R-P1.",
+          "expected_result": "HTTP 200 'Receipt ingested successfully.'; R-P1 is stored with issuanceType=Printed, deliveryMethod=None, receiptHtml and all common identification/lifecycle fields. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-019",
+      "title": "TGO - AC3 - Issuance Type Passed To Storage And Receipt List Unchanged",
+      "scenario": "AC3 - Issuance Type Passed To Storage And Receipt List Unchanged",
+      "test_condition": "Issuance type Digital/Printed accepted, stored and propagated; invalid values rejected.",
+      "test_condition_id": "TCOND-006",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Database",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. R-D1 (Digital) and R-P1 (Printed) ingested; property Technical Setting = All Receipts; receipt-list API (#1445171) available.",
+      "test_data": "R-D1, R-P1; receipt-list request for P1 on S1",
+      "req_ids": [
+        "REQ-003",
+        "REQ-009"
+      ],
+      "source": "[Work Item AC] AC3; Dependencies #1365562, #1445171",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Query ModuleReceiptContent for R-D1 and R-P1 and note issuanceType.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Call the player receipt-list API for P1 on S1.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Compare the receipt type returned for R-D1 and R-P1 with the stored values.",
+          "expected_result": "Stored issuanceType is Digital for R-D1 and Printed for R-P1, and the receipt-list response exposes the same types for each receipt with no conversion or defaulting."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-020",
+      "title": "TGO - AC3 - Invalid issuanceType Values Rejected",
+      "scenario": "AC3 - Invalid issuanceType Values Rejected",
+      "test_condition": "Issuance type Digital/Printed accepted, stored and propagated; invalid values rejected.",
+      "test_condition_id": "TCOND-006",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "issuanceType = \"Kiosk\" | \"Email\" | \"Paper\" | \"\" | \"Digital,Printed\"",
+      "req_ids": [
+        "REQ-003"
+      ],
+      "source": "[Work Item AC] AC3",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send one ingestion request per invalid issuanceType value (new receiptIdentifier each).",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt IDs used.",
+          "expected_result": "Each request returns HTTP 400 Bad Request in the standard Connector error format (errorCode + message) identifying issuanceType; no rows stored and no default type applied. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-021",
+      "title": "TGO - AC3 - issuanceType Casing And Padding Handled Consistently",
+      "scenario": "AC3 - issuanceType Casing And Padding Handled Consistently",
+      "test_condition": "Issuance type Digital/Printed accepted, stored and propagated; invalid values rejected.",
+      "test_condition_id": "TCOND-006",
+      "type": "Boundary",
+      "test_level": "Integration",
+      "technique": "BVA",
+      "category": "API",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "issuanceType = \"digital\" | \"PRINTED\" | \" Printed \"",
+      "req_ids": [
+        "REQ-003"
+      ],
+      "source": "[Work Item AC] AC3",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send ingestion requests with lower-case, upper-case and padded issuanceType values.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for accepted receipts.",
+          "expected_result": "Behaviour is consistent with the contract: either all variants rejected with HTTP 400 Bad Request in the standard Connector error format (errorCode + message), or accepted and normalised to the canonical 'Digital'/'Printed' value in storage - never stored in a non-canonical form that downstream list filtering would miss."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-022",
+      "title": "TGO - AC3 - Printed Receipt Not Classified As Digitally Delivered",
+      "scenario": "AC3 - Printed Receipt Not Classified As Digitally Delivered",
+      "test_condition": "Printed receipt never classified as digital; list visibility follows Technical Setting.",
+      "test_condition_id": "TCOND-007",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Error Guessing",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. R-P1 ingested as Printed/None (TC-018); notification processing (#1349857) observable.",
+      "test_data": "R-P1",
+      "req_ids": [
+        "REQ-003",
+        "REQ-004"
+      ],
+      "source": "[Work Item AC] AC3",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Query ModuleReceiptContent for R-P1 issuanceType and deliveryMethod.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Check notification processing for any delivery record for R-P1.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Call the receipt-list API for P1 with Technical Setting = Digital Only.",
+          "expected_result": "R-P1 remains issuanceType=Printed (not Digital), no email/SMS delivery record exists, and R-P1 is not returned under Digital Only."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-023",
+      "title": "TGO - AC3 - Receipt List Visibility By Technical Setting And Issuance Type",
+      "scenario": "AC3 - Receipt List Visibility By Technical Setting And Issuance Type",
+      "test_condition": "Printed receipt never classified as digital; list visibility follows Technical Setting.",
+      "test_condition_id": "TCOND-007",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "Decision Table",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. R-D1 (Digital, Issued, unexpired) and R-P1 (Printed, Issued, unexpired) ingested for P1; ability to switch the property Technical Setting between Digital Only and All Receipts.",
+      "test_data": "Rules: (1) Digital Only + Digital -> listed; (2) Digital Only + Printed -> not listed; (3) All Receipts + Digital -> listed; (4) All Receipts + Printed -> listed",
+      "req_ids": [
+        "REQ-003",
+        "REQ-004"
+      ],
+      "source": "Description; AC3; #1445171",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Set Technical Setting = Digital Only and call the receipt-list API for P1.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Set Technical Setting = All Receipts and call the receipt-list API for P1.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Compare results against the decision table.",
+          "expected_result": "Digital Only returns R-D1 only; All Receipts returns both R-D1 and R-P1 - matching all four decision-table rules."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-024",
+      "title": "TGO - AC3 - Digital And Printed Use Same Identification And Lifecycle Fields",
+      "scenario": "AC3 - Digital And Printed Use Same Identification And Lifecycle Fields",
+      "test_condition": "Printed receipt never classified as digital; list visibility follows Technical Setting.",
+      "test_condition_id": "TCOND-007",
+      "type": "Positive",
+      "test_level": "Component",
+      "technique": "EP",
+      "category": "Database",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. R-D1 and R-P1 ingested.",
+      "test_data": "R-D1, R-P1",
+      "req_ids": [
+        "REQ-003"
+      ],
+      "source": "[Work Item AC] AC3",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Query ModuleReceiptContent for R-D1 and R-P1 selecting all columns.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Compare populated identification/lifecycle columns between the two rows.",
+          "expected_result": "Both rows populate the same identification (site, player, receiptIdentifier, moduleIdentifier) and lifecycle (receiptStatus, transactionDate, expirationDate) columns; only issuanceType/deliveryMethod differ."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-025",
+      "title": "TGO - AC4 - Printed Receipt Content Handed To Loyalty Cloud Storage",
+      "scenario": "AC4 - Printed Receipt Content Handed To Loyalty Cloud Storage",
+      "test_condition": "Printed receipt with deliveryMethod None accepted, stored, and no email/SMS triggered.",
+      "test_condition_id": "TCOND-008",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. R-P1 ingested (TC-018).",
+      "test_data": "R-P1",
+      "req_ids": [
+        "REQ-004",
+        "REQ-009"
+      ],
+      "source": "[Work Item AC] AC4; #1365562",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Verify R-P1 is present in Loyalty Cloud storage with its HTML and metadata.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Retrieve the short Receipt URL created for R-P1 by #1365562 and open it.",
+          "expected_result": "Stored printed receipt content matches the ingested HTML and the short Receipt URL renders the same receipt as printed at the kiosk."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-026",
+      "title": "TGO - AC4 - Printed Receipt Ingestion Does Not Trigger Email Or SMS",
+      "scenario": "AC4 - Printed Receipt Ingestion Does Not Trigger Email Or SMS",
+      "test_condition": "Printed receipt with deliveryMethod None accepted, stored, and no email/SMS triggered.",
+      "test_condition_id": "TCOND-008",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Player P1 has a valid email and mobile number; notification processing (#1349857) and test mailbox/SMS sink observable.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with issuanceType=\"Printed\", deliveryMethod=\"None\"",
+      "req_ids": [
+        "REQ-004",
+        "REQ-013"
+      ],
+      "source": "[Work Item AC] AC4",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the printed receipt ingestion request.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Wait for the notification processing interval and check the notification queue/records.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Check the test mailbox and SMS sink for P1.",
+          "expected_result": "HTTP 200 'Receipt ingested successfully.'; no notification record is created and no email or SMS is received for the printed receipt."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-027",
+      "title": "TGO - AC4 - Printed Receipt With Email SMS Or Both Delivery Method",
+      "scenario": "AC4 - Printed Receipt With Email SMS Or Both Delivery Method",
+      "test_condition": "Printed receipt with deliveryMethod None accepted, stored, and no email/SMS triggered.",
+      "test_condition_id": "TCOND-008",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Decision Table",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Notification processing observable.",
+      "test_data": "issuanceType=\"Printed\" with deliveryMethod = \"Email\" | \"SMS\" | \"Both\" (new receiptIdentifier each)",
+      "req_ids": [
+        "REQ-004",
+        "REQ-005"
+      ],
+      "source": "[Work Item AC] AC4; AC5",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send a printed receipt with deliveryMethod Email.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send a printed receipt with deliveryMethod SMS.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send a printed receipt with deliveryMethod Both.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Check responses, stored rows and notification records.",
+          "expected_result": "Per the approved contract the combination is either rejected with HTTP 400 Bad Request in the standard Connector error format (errorCode + message) or accepted as Printed; in no case is an email/SMS automatically triggered for a printed receipt."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-028",
+      "title": "TGO - AC5 - Digital Receipt With Email Delivery Accepted",
+      "scenario": "AC5 - Digital Receipt With Email Delivery Accepted",
+      "test_condition": "Delivery methods Email/SMS/Both/None accepted and propagated; invalid values rejected.",
+      "test_condition_id": "TCOND-009",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with issuanceType=\"Digital\", deliveryMethod=\"Email\"",
+      "req_ids": [
+        "REQ-005"
+      ],
+      "source": "[Work Item AC] AC5",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the digital receipt ingestion request with deliveryMethod Email.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt.",
+          "expected_result": "HTTP 200 'Receipt ingested successfully.'; receipt stored with issuanceType=Digital and deliveryMethod=Email. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-029",
+      "title": "TGO - AC5 - Digital Receipt With SMS Delivery Accepted",
+      "scenario": "AC5 - Digital Receipt With SMS Delivery Accepted",
+      "test_condition": "Delivery methods Email/SMS/Both/None accepted and propagated; invalid values rejected.",
+      "test_condition_id": "TCOND-009",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with issuanceType=\"Digital\", deliveryMethod=\"SMS\"",
+      "req_ids": [
+        "REQ-005"
+      ],
+      "source": "[Work Item AC] AC5",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the digital receipt ingestion request with deliveryMethod SMS.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt.",
+          "expected_result": "HTTP 200 'Receipt ingested successfully.'; receipt stored with issuanceType=Digital and deliveryMethod=SMS. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-030",
+      "title": "TGO - AC5 - Digital Receipt With Both Email And SMS Accepted",
+      "scenario": "AC5 - Digital Receipt With Both Email And SMS Accepted",
+      "test_condition": "Delivery methods Email/SMS/Both/None accepted and propagated; invalid values rejected.",
+      "test_condition_id": "TCOND-009",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with issuanceType=\"Digital\", deliveryMethod=\"Both\"",
+      "req_ids": [
+        "REQ-005"
+      ],
+      "source": "[Work Item AC] AC5",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the digital receipt ingestion request with deliveryMethod Both.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt.",
+          "expected_result": "HTTP 200 'Receipt ingested successfully.'; receipt stored with issuanceType=Digital and deliveryMethod=Both. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-031",
+      "title": "TGO - AC5 - Digital Receipt With No Delivery Stored Only",
+      "scenario": "AC5 - Digital Receipt With No Delivery Stored Only",
+      "test_condition": "Delivery methods Email/SMS/Both/None accepted and propagated; invalid values rejected.",
+      "test_condition_id": "TCOND-009",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Notification processing observable.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with issuanceType=\"Digital\", deliveryMethod=\"None\"",
+      "req_ids": [
+        "REQ-005"
+      ],
+      "source": "[Work Item AC] AC5",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the digital receipt ingestion request with deliveryMethod None.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent and notification records for the receipt.",
+          "expected_result": "HTTP 200 'Receipt ingested successfully.'; receipt stored with deliveryMethod=None and no email/SMS notification is created (storage only). AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-032",
+      "title": "TGO - AC5 - Delivery Method Propagated To Notification Processing",
+      "scenario": "AC5 - Delivery Method Propagated To Notification Processing",
+      "test_condition": "Delivery methods Email/SMS/Both/None accepted and propagated; invalid values rejected.",
+      "test_condition_id": "TCOND-009",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "Decision Table",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Receipts from TC-028..TC-031 ingested; P1 has a valid email and mobile; notification processing (#1349857) and test mailbox/SMS sink observable.",
+      "test_data": "Rules: Email -> email only; SMS -> SMS only; Both -> email + SMS; None -> nothing",
+      "req_ids": [
+        "REQ-005",
+        "REQ-009"
+      ],
+      "source": "[Work Item AC] AC5; #1349857",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Check the notification requests generated for the Email, SMS, Both and None receipts.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Check the test mailbox and SMS sink for each receipt.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Compare channel(s) used per receipt against the decision table.",
+          "expected_result": "Each receipt produces exactly the channel(s) in its rule and carries the short Receipt URL; no receipt is delivered on an unrequested channel or more than once."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-033",
+      "title": "TGO - AC5 - Invalid deliveryMethod Values Rejected",
+      "scenario": "AC5 - Invalid deliveryMethod Values Rejected",
+      "test_condition": "Delivery methods Email/SMS/Both/None accepted and propagated; invalid values rejected.",
+      "test_condition_id": "TCOND-009",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "deliveryMethod = \"Fax\" | \"Email,SMS\" | \"Push\" | \"\" | \"email\" | \"BOTH\"",
+      "req_ids": [
+        "REQ-005"
+      ],
+      "source": "[Work Item AC] AC5",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send one ingestion request per invalid/variant deliveryMethod (new receiptIdentifier each).",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt IDs used.",
+          "expected_result": "Unsupported values return HTTP 400 Bad Request in the standard Connector error format (errorCode + message) identifying deliveryMethod with no row stored; casing variants are either rejected or normalised consistently to the canonical value. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-034",
+      "title": "TGO - AC6 - Receipt Ingested With Issued Redeemed And Voided Status",
+      "scenario": "AC6 - Receipt Ingested With Issued Redeemed And Voided Status",
+      "test_condition": "Status values Issued/Redeemed/Voided accepted; invalid values rejected.",
+      "test_condition_id": "TCOND-010",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with receiptStatus = \"Issued\" (R-S1) | \"Redeemed\" (R-S2) | \"Voided\" (R-S3)",
+      "req_ids": [
+        "REQ-006"
+      ],
+      "source": "[Work Item AC] AC6; Comment #13585124",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request for R-S1 with receiptStatus Issued.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the ingestion request for R-S2 with receiptStatus Redeemed.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send the ingestion request for R-S3 with receiptStatus Voided.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Query ModuleReceiptContent for R-S1, R-S2, R-S3.",
+          "expected_result": "All three return HTTP 200 'Receipt ingested successfully.' and each row stores its supplied receiptStatus and transactionDate. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-035",
+      "title": "TGO - AC6 - Invalid receiptStatus Values Rejected",
+      "scenario": "AC6 - Invalid receiptStatus Values Rejected",
+      "test_condition": "Status values Issued/Redeemed/Voided accepted; invalid values rejected.",
+      "test_condition_id": "TCOND-010",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "receiptStatus = \"Expired\" | \"Cancelled\" | \"Used\" | \"\" | 1 | \"issued\"",
+      "req_ids": [
+        "REQ-006"
+      ],
+      "source": "[Work Item AC] AC6",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send one ingestion request per invalid receiptStatus value (new receiptIdentifier each).",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt IDs used.",
+          "expected_result": "Each unsupported value returns HTTP 400 Bad Request in the standard Connector error format (errorCode + message) identifying receiptStatus with no row stored; the casing variant 'issued' is rejected or normalised consistently per contract. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-036",
+      "title": "TGO - AC6 - Transaction Date After Expiration Returns TGO-CNT040",
+      "scenario": "AC6 - Transaction Date After Expiration Returns TGO-CNT040",
+      "test_condition": "Transaction/expiration date validity, precision, timezone and ordering (TGO-CNT040).",
+      "test_condition_id": "TCOND-011",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "transactionDate=\"2026-10-31T18:55:17.675Z\", expirationDate=\"2026-10-01T18:55:17.675Z\"",
+      "req_ids": [
+        "REQ-006",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC6; Wiki TGO-CNT040",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request with transactionDate 30 days after expirationDate.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receiptIdentifier.",
+          "expected_result": "HTTP 400 Bad Request in the standard Connector error format (errorCode + message) with errorCode TGO-CNT040 'Provided transaction date is after the expiration date'; no row is created in ModuleReceiptContent and nothing is handed to storage/notification processing. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-037",
+      "title": "TGO - AC6 - Transaction Date At Expiration Boundaries",
+      "scenario": "AC6 - Transaction Date At Expiration Boundaries",
+      "test_condition": "Transaction/expiration date validity, precision, timezone and ordering (TGO-CNT040).",
+      "test_condition_id": "TCOND-011",
+      "type": "Boundary",
+      "test_level": "Integration",
+      "technique": "BVA",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "expirationDate=\"2026-10-31T18:55:17.675Z\" with transactionDate = expiration - 1 ms (\"...17.674Z\") | = expiration (\"...17.675Z\") | expiration + 1 ms (\"...17.676Z\")",
+      "req_ids": [
+        "REQ-006",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC6; Wiki TGO-CNT040",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the request with transactionDate 1 ms before expirationDate.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the request with transactionDate equal to expirationDate.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send the request with transactionDate 1 ms after expirationDate.",
+          "expected_result": "Just-before and equal return HTTP 200 'Receipt ingested successfully.'; just-after returns HTTP 400 Bad Request in the standard Connector error format (errorCode + message) TGO-CNT040 with no row stored (confirm equality rule with Dev). AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-038",
+      "title": "TGO - AC6 - Invalid Date Formats Rejected",
+      "scenario": "AC6 - Invalid Date Formats Rejected",
+      "test_condition": "Transaction/expiration date validity, precision, timezone and ordering (TGO-CNT040).",
+      "test_condition_id": "TCOND-011",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "transactionDate/expirationDate = \"2026-13-01T00:00:00Z\" | \"2026-02-30T00:00:00Z\" | \"31/10/2026\" | \"not-a-date\" | \"\" | \"0001-01-01T00:00:00Z\" | \"9999-12-31T23:59:59Z\"",
+      "req_ids": [
+        "REQ-006"
+      ],
+      "source": "[Work Item AC] AC6",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send ingestion requests with each invalid transactionDate value.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send ingestion requests with each invalid expirationDate value.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query ModuleReceiptContent for the receipt IDs used.",
+          "expected_result": "Impossible/unparseable/empty dates return HTTP 400 Bad Request in the standard Connector error format (errorCode + message) identifying the date field with no row stored; DateTime.Min/Max extremes are either rejected or stored without overflow (no 5xx). AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-039",
+      "title": "TGO - AC6 - Expiration Date Already In The Past",
+      "scenario": "AC6 - Expiration Date Already In The Past",
+      "test_condition": "Transaction/expiration date validity, precision, timezone and ordering (TGO-CNT040).",
+      "test_condition_id": "TCOND-011",
+      "type": "Boundary",
+      "test_level": "Integration",
+      "technique": "BVA",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Receipt-list API available.",
+      "test_data": "transactionDate=\"2026-09-20T10:00:00.000Z\", expirationDate=\"2026-09-25T10:00:00.000Z\" (both before today)",
+      "req_ids": [
+        "REQ-006"
+      ],
+      "source": "[Work Item AC] AC6; #1477504",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request with an already-expired expirationDate.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Call the receipt-list API for P1.",
+          "expected_result": "Ingestion outcome follows the approved rule (accepted and stored, or rejected with HTTP 400 Bad Request in the standard Connector error format (errorCode + message)); if stored, the expired receipt is not returned as available in the receipt list."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-040",
+      "title": "TGO - AC6 - Timezone Offset And Precision Of Dates Preserved",
+      "scenario": "AC6 - Timezone Offset And Precision Of Dates Preserved",
+      "test_condition": "Transaction/expiration date validity, precision, timezone and ordering (TGO-CNT040).",
+      "test_condition_id": "TCOND-011",
+      "type": "Boundary",
+      "test_level": "Integration",
+      "technique": "BVA",
+      "category": "Database",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "(A) transactionDate=\"2026-10-01T18:55:17.675Z\"; (B) transactionDate=\"2026-10-02T00:25:17.675+05:30\", expirationDate=\"2026-10-01T19:00:00.000Z\"",
+      "req_ids": [
+        "REQ-006"
+      ],
+      "source": "[Work Item AC] AC6",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send request A and read the stored transactionDate.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send request B (offset date equal to 18:55:17.675Z, before expiration once normalised).",
+          "expected_result": "A stores the date with millisecond precision; B returns HTTP 200 'Receipt ingested successfully.' (the TGO-CNT040 rule compares UTC-normalised instants) and stores the same UTC instant as A."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-041",
+      "title": "TGO - AC7 - Existing Promotion Receipt Integration Still Works",
+      "scenario": "AC7 - Existing Promotion Receipt Integration Still Works",
+      "test_condition": "Existing promotion-receipt integrations unaffected; versioning rules honoured.",
+      "test_condition_id": "TCOND-012",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Existing receipt/Distribute Voucher caller (pre-2.8.0 contract) and a sample legacy payload available from the current integration.",
+      "test_data": "Legacy Distribute Voucher / promotion receipt request as sent by the current Trilogy integration",
+      "req_ids": [
+        "REQ-007"
+      ],
+      "source": "[Work Item AC] AC7",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the legacy promotion receipt request to the existing endpoint/version.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Verify the downstream behaviour of the legacy flow (voucher distribution) as before the change.",
+          "expected_result": "Legacy request returns the same success response and downstream result as the pre-change baseline; no new required field breaks the existing caller."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-042",
+      "title": "TGO - AC7 - Legacy Payload On New Versioned Contract Handled Explicitly",
+      "scenario": "AC7 - Legacy Payload On New Versioned Contract Handled Explicitly",
+      "test_condition": "Existing promotion-receipt integrations unaffected; versioning rules honoured.",
+      "test_condition_id": "TCOND-012",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "API",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Legacy payload available.",
+      "test_data": "Legacy payload (without receiptHtml/issuanceType/deliveryMethod) sent to POST /S1/api/v1/player/receipt",
+      "req_ids": [
+        "REQ-007",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC7",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the legacy-shaped payload to the new ingestion route.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for any row created.",
+          "expected_result": "Request is rejected with HTTP 400 Bad Request in the standard Connector error format (errorCode + message) TGO-CNT034 listing the missing fields (no partial receipt), confirming legacy callers must stay on their supported contract until an approved migration."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-043",
+      "title": "TGO - AC7 - Unsupported API Version Rejected",
+      "scenario": "AC7 - Unsupported API Version Rejected",
+      "test_condition": "Existing promotion-receipt integrations unaffected; versioning rules honoured.",
+      "test_condition_id": "TCOND-012",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "POST /S1/api/v2/player/receipt and /S1/api/v0/player/receipt with a valid body",
+      "req_ids": [
+        "REQ-007",
+        "REQ-010"
+      ],
+      "source": "[Work Item AC] AC7; Wiki 169844 TGO-CNT005",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send a valid body to the v2 route.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send a valid body to the v0 route.",
+          "expected_result": "Both return a controlled 4xx (404 or TGO-CNT005 'Invalid API Version') and store nothing; only v1 accepts ingestion."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-044",
+      "title": "TGO - AC8 - OfferMaker Module Receipt Ingested",
+      "scenario": "AC8 - OfferMaker Module Receipt Ingested",
+      "test_condition": "Module identification, module enablement and property-agnostic processing.",
+      "test_condition_id": "TCOND-013",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. OfferMaker module enabled for S1.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with moduleIdentifier=<OfferMaker module id>",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "[Work Item AC] AC8",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request with the OfferMaker moduleIdentifier.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt.",
+          "expected_result": "HTTP 200 'Receipt ingested successfully.'; receipt stored with moduleIdentifier = OfferMaker id. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-045",
+      "title": "TGO - AC8 - Legacy Promotions Module Receipt Ingested",
+      "scenario": "AC8 - Legacy Promotions Module Receipt Ingested",
+      "test_condition": "Module identification, module enablement and property-agnostic processing.",
+      "test_condition_id": "TCOND-013",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Legacy promotions module enabled for S1.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with moduleIdentifier=<legacy promotions module id>",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "[Work Item AC] AC8",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request with the legacy promotions moduleIdentifier.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt.",
+          "expected_result": "HTTP 200 'Receipt ingested successfully.'; receipt stored with the legacy promotions moduleIdentifier and processed identically to OfferMaker receipts. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-046",
+      "title": "TGO - AC8 - Unknown moduleIdentifier Rejected",
+      "scenario": "AC8 - Unknown moduleIdentifier Rejected",
+      "test_condition": "Module identification, module enablement and property-agnostic processing.",
+      "test_condition_id": "TCOND-013",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "moduleIdentifier = \"UNKNOWN_MODULE\" | \"\" | \"<script>\"",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "[Work Item AC] AC8; Wiki 169844 TGO-CNT025",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send ingestion requests with each invalid moduleIdentifier.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt IDs used.",
+          "expected_result": "Each returns HTTP 400 Bad Request in the standard Connector error format (errorCode + message) (TGO-CNT025 'Invalid module identifier' or TGO-CNT034 for empty); no rows stored. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-047",
+      "title": "TGO - AC8 - Module Enablement Configuration Controls Ingestion",
+      "scenario": "AC8 - Module Enablement Configuration Controls Ingestion",
+      "test_condition": "Module identification, module enablement and property-agnostic processing.",
+      "test_condition_id": "TCOND-013",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Decision Table",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Ability to toggle the module enablement configuration for S1.",
+      "test_data": "Rules: module enabled -> accepted; module disabled -> rejected; re-enabled -> accepted",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "[Work Item AC] AC8; Wiki 169844 TGO-CNT028",
+      "steps": [
+        {
+          "index": 1,
+          "action": "With OfferMaker enabled, send an ingestion request (receipt R-E1).",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Disable OfferMaker for S1 and send an ingestion request (receipt R-E2).",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Re-enable OfferMaker and send an ingestion request (receipt R-E3).",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Query ModuleReceiptContent for R-E1..R-E3.",
+          "expected_result": "R-E1 and R-E3 return HTTP 200 'Receipt ingested successfully.' and are stored; R-E2 is rejected (e.g. TGO-CNT028 'Trilogy Go Module is disabled') with no row stored."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-048",
+      "title": "TGO - AC8 - No Property-Specific Processing Across Sites",
+      "scenario": "AC8 - No Property-Specific Processing Across Sites",
+      "test_condition": "Module identification, module enablement and property-agnostic processing.",
+      "test_condition_id": "TCOND-013",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Two QA sites configured: a Venetian-like site and a non-Venetian site, both with the module enabled.",
+      "test_data": "Identical body (different receiptIdentifier) sent to each site",
+      "req_ids": [
+        "REQ-008"
+      ],
+      "source": "[Work Item AC] AC8; Feature #1320913 (Venetian, Caesars, Oaklawn)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request to the Venetian site.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the same request to the non-Venetian site.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Compare responses and stored rows.",
+          "expected_result": "Both sites return HTTP 200 'Receipt ingested successfully.' with identical stored structure and processing; no site-specific branching or data differences other than site/tenant identifiers."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-049",
+      "title": "TGO - AC9 - Accepted Receipt Handed To Storage With Short Receipt URL",
+      "scenario": "AC9 - Accepted Receipt Handed To Storage With Short Receipt URL",
+      "test_condition": "Hand-off to storage; success only after acceptance; no false success; correlation info on failure.",
+      "test_condition_id": "TCOND-014",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Storage story #1365562 deployed.",
+      "test_data": "R-D1 from TC-001",
+      "req_ids": [
+        "REQ-009"
+      ],
+      "source": "[Work Item AC] AC9; #1365562",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Verify R-D1 is stored in Loyalty Cloud by the #1365562 storage process.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Retrieve and open the short Receipt URL for R-D1.",
+          "expected_result": "R-D1 is persisted with its HTML and metadata, and the short Receipt URL renders the ingested receipt HTML."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-050",
+      "title": "TGO - AC9 - Storage Unavailable Never Returns Success",
+      "scenario": "AC9 - Storage Unavailable Never Returns Success",
+      "test_condition": "Hand-off to storage; success only after acceptance; no false success; correlation info on failure.",
+      "test_condition_id": "TCOND-014",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Recovery",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Ability to make the ModuleReceiptContent database/storage unavailable in QA (with DevOps support).",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with receiptIdentifier=R-F1",
+      "req_ids": [
+        "REQ-009",
+        "REQ-014"
+      ],
+      "source": "[Work Item AC] AC9",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Make storage unavailable.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the ingestion request for R-F1.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Restore storage and re-send the same request for R-F1.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Query ModuleReceiptContent for R-F1.",
+          "expected_result": "During the outage a non-200 error is returned (e.g. 5xx / TGO-CNT017 with correlation id) - never 200; after recovery the retry returns HTTP 200 'Receipt ingested successfully.' and exactly one R-F1 row exists."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-051",
+      "title": "TGO - AC9 - Error Responses Carry Correlation Information",
+      "scenario": "AC9 - Error Responses Carry Correlation Information",
+      "test_condition": "Hand-off to storage; success only after acceptance; no false success; correlation info on failure.",
+      "test_condition_id": "TCOND-014",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "API",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Access to Connector logs (App Insights/Kibana).",
+      "test_data": "Failing requests: missing receiptHtml (CNT034), duplicate ID (CNT035), invalid tenant (CNT014)",
+      "req_ids": [
+        "REQ-009",
+        "REQ-014"
+      ],
+      "source": "[Work Item AC] AC9",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send each failing request and capture the response body and headers.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Search Connector logs using the correlation/trace id from each response.",
+          "expected_result": "Each error response contains errorCode, message and a correlation/trace id (body or header) that locates the matching log entry; no stack trace or internal detail is exposed."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-052",
+      "title": "TGO - AC9 - Client Timeout Retry Does Not Create Duplicate Receipt",
+      "scenario": "AC9 - Client Timeout Retry Does Not Create Duplicate Receipt",
+      "test_condition": "Hand-off to storage; success only after acceptance; no false success; correlation info on failure.",
+      "test_condition_id": "TCOND-014",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Recovery",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with receiptIdentifier=R-T1; client timeout set to 1 ms",
+      "req_ids": [
+        "REQ-009",
+        "REQ-014"
+      ],
+      "source": "[Work Item AC] AC9; Wiki TGO-CNT035",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request for R-T1 with a 1 ms client timeout so the client aborts.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Re-send the identical request with a normal timeout.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query ModuleReceiptContent for R-T1.",
+          "expected_result": "Retry returns either HTTP 200 'Receipt ingested successfully.' (first attempt not committed) or TGO-CNT035 (first attempt committed); exactly one R-T1 row exists and only one notification is generated."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-053",
+      "title": "TGO - Wiki - Missing Tenant Header Returns TGO-CNT014",
+      "scenario": "Wiki - Missing Tenant Header Returns TGO-CNT014",
+      "test_condition": "Tenant/meta headers, site scoping and documented error codes honoured.",
+      "test_condition_id": "TCOND-015",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Security",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"}; headers without x-evri-tenantid",
+      "req_ids": [
+        "REQ-010"
+      ],
+      "source": "Wiki TGO-CNT014",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request without the x-evri-tenantid header.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receiptIdentifier.",
+          "expected_result": "HTTP 400 Bad Request in the standard Connector error format (errorCode + message) with errorCode TGO-CNT014 'Invalid Tenant'; no row is created in ModuleReceiptContent and nothing is handed to storage/notification processing. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-054",
+      "title": "TGO - Wiki - Invalid Tenant Header Returns TGO-CNT014",
+      "scenario": "Wiki - Invalid Tenant Header Returns TGO-CNT014",
+      "test_condition": "Tenant/meta headers, site scoping and documented error codes honoured.",
+      "test_condition_id": "TCOND-015",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Security",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "x-evri-tenantid = \"00000000-0000-0000-0000-000000000000\" | \"invalid\" | \"\"",
+      "req_ids": [
+        "REQ-010"
+      ],
+      "source": "Wiki TGO-CNT014",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request with each invalid x-evri-tenantid value.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receipt IDs used.",
+          "expected_result": "Each returns HTTP 400 Bad Request in the standard Connector error format (errorCode + message) TGO-CNT014 'Invalid Tenant'; no rows stored. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-055",
+      "title": "TGO - Wiki - Missing Meta Header Returns TGO-CNT027",
+      "scenario": "Wiki - Missing Meta Header Returns TGO-CNT027",
+      "test_condition": "Tenant/meta headers, site scoping and documented error codes honoured.",
+      "test_condition_id": "TCOND-015",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "Security",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"}; headers without x-evri-meta",
+      "req_ids": [
+        "REQ-010"
+      ],
+      "source": "Wiki TGO-CNT027",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request without the x-evri-meta header.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for the receiptIdentifier.",
+          "expected_result": "HTTP 400 Bad Request in the standard Connector error format (errorCode + message) with errorCode TGO-CNT027 'invalid Meta'; no row is created in ModuleReceiptContent and nothing is handed to storage/notification processing. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-056",
+      "title": "TGO - Comment - x-evri-meta Format Variants Validated",
+      "scenario": "Comment - x-evri-meta Format Variants Validated",
+      "test_condition": "Signature authentication enforced; meta format variants; distinct tenant vs meta errors.",
+      "test_condition_id": "TCOND-016",
+      "type": "Boundary",
+      "test_level": "Integration",
+      "technique": "BVA",
+      "category": "Security",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Confirmed meta contract from Dev ('PlayerId;' vs 'PlayerId;ModuleIdentifier;ModuleRecordIdentifier').",
+      "test_data": "x-evri-meta encoding of: \"1234787;\" | \"1234787\" (no ;) | \"1234787;OfferMaker;OFFR-R1\" | \";\" | \"\" | \"abc;\" | non-encoded plain text",
+      "req_ids": [
+        "REQ-010",
+        "REQ-011"
+      ],
+      "source": "Comment #13585124 (observations 2, 3)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request with meta '1234787;'.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the request with meta '1234787' (no semicolon).",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send the request with the Launch-Content style meta '1234787;OfferMaker;OFFR-R1'.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Send requests with ';', empty, 'abc;' and non-encoded meta.",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Query ModuleReceiptContent for the receipt IDs used.",
+          "expected_result": "Only the confirmed meta format(s) return HTTP 200 'Receipt ingested successfully.' and associate the receipt with player 1234787; every other variant returns HTTP 400 Bad Request in the standard Connector error format (errorCode + message) TGO-CNT027 'invalid Meta' with no row stored."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-057",
+      "title": "TGO - Comment - Request Without Signature Authentication Rejected",
+      "scenario": "Comment - Request Without Signature Authentication Rejected",
+      "test_condition": "Signature authentication enforced; meta format variants; distinct tenant vs meta errors.",
+      "test_condition_id": "TCOND-016",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Signature/authorization scheme for Content Service confirmed with Dev.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"}; valid tenant/meta headers but (a) no Signature/Authorization header, (b) invalid signature, (c) signature for a different body",
+      "req_ids": [
+        "REQ-011"
+      ],
+      "source": "Comment #13585124 (observation 1)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request without any Signature/Authorization header.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the request with an invalid signature.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send the request with a signature computed for a different body.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Query ModuleReceiptContent for the receipt IDs used.",
+          "expected_result": "All three are rejected (e.g. TGO-CNT020 'Missing Authorization' / TGO-CNT010 'Invalid Signature') with no row stored. Current QA observation (200 without signature) must be logged as a defect if it persists."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-058",
+      "title": "TGO - Comment - Invalid Tenant And Invalid Meta Return Distinct Error Codes",
+      "scenario": "Comment - Invalid Tenant And Invalid Meta Return Distinct Error Codes",
+      "test_condition": "Signature authentication enforced; meta format variants; distinct tenant vs meta errors.",
+      "test_condition_id": "TCOND-016",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "(a) invalid x-evri-tenantid + valid meta; (b) valid tenant + invalid x-evri-meta; (c) both invalid",
+      "req_ids": [
+        "REQ-010",
+        "REQ-011"
+      ],
+      "source": "Comment #13585124 (observation 4); Wiki 169844",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send request (a) with only the tenant invalid.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send request (b) with only the meta invalid.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send request (c) with both invalid.",
+          "expected_result": "(a) returns TGO-CNT014 'Invalid Tenant', (b) returns TGO-CNT027 'invalid Meta' - never a combined code/message; (c) returns the documented precedence code (confirm, expected TGO-CNT014)."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-059",
+      "title": "TGO - Wiki - Cross-Tenant Or Mismatched siteId Ingestion Rejected",
+      "scenario": "Wiki - Cross-Tenant Or Mismatched siteId Ingestion Rejected",
+      "test_condition": "Tenant/meta headers, site scoping and documented error codes honoured.",
+      "test_condition_id": "TCOND-015",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Second site S2 belongs to a different tenant.",
+      "test_data": "Route /S2/api/v1/player/receipt with S1 tenant header and P1 meta; route /S1 with S2 tenant header",
+      "req_ids": [
+        "REQ-010"
+      ],
+      "source": "Wiki (route siteId + tenant header)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request to site S2 using S1's tenant header.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the ingestion request to site S1 using S2's tenant header.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query ModuleReceiptContent on both sites.",
+          "expected_result": "Both requests are rejected (TGO-CNT014 / TGO-CNT012 'Invalid site') and no receipt is created on either site."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-060",
+      "title": "TGO - Wiki - Non-Existent Or Inactive siteId Rejected",
+      "scenario": "Wiki - Non-Existent Or Inactive siteId Rejected",
+      "test_condition": "Tenant/meta headers, site scoping and documented error codes honoured.",
+      "test_condition_id": "TCOND-015",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. An inactive site S3 exists in QA.",
+      "test_data": "Route siteId = 999999 (non-existent) | S3 (inactive) | 'abc'",
+      "req_ids": [
+        "REQ-010"
+      ],
+      "source": "Wiki route; Wiki 169844 TGO-CNT006/TGO-CNT029",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request to a non-existent siteId.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the request to the inactive site S3.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send the request with a non-numeric siteId.",
+          "expected_result": "Each returns a controlled 4xx (e.g. TGO-CNT006 'Casino site does not exist', TGO-CNT029 'Site is inactive', 400/404) with no row stored and no 5xx."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-061",
+      "title": "TGO - Wiki - Injection Payloads In Text Fields Stored Safely",
+      "scenario": "Wiki - Injection Payloads In Text Fields Stored Safely",
+      "test_condition": "Tenant/meta headers, site scoping and documented error codes honoured.",
+      "test_condition_id": "TCOND-015",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "receiptIdentifier=\"R-1'; DROP TABLE ModuleReceiptContent;--\", description=\"' OR '1'='1\", templateName=\"<img src=x onerror=alert(1)>\"",
+      "req_ids": [
+        "REQ-010",
+        "REQ-014"
+      ],
+      "source": "Error Guessing (OWASP A03)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request containing SQL/script injection strings.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent row count and the receipt, if stored.",
+          "expected_result": "Request is rejected with HTTP 400 Bad Request in the standard Connector error format (errorCode + message) or stored literally as data; no SQL executed, table intact, no 5xx or database error text in the response."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-062",
+      "title": "TGO - Wiki - Malformed JSON And Wrong Content-Type Rejected",
+      "scenario": "Wiki - Malformed JSON And Wrong Content-Type Rejected",
+      "test_condition": "Tenant/meta headers, site scoping and documented error codes honoured.",
+      "test_condition_id": "TCOND-015",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "API",
+      "priority": 2,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "(a) empty body; (b) truncated JSON '{\"receiptIdentifier\":'; (c) valid JSON with Content-Type=text/plain; (d) XML body with Content-Type=application/xml",
+      "req_ids": [
+        "REQ-010"
+      ],
+      "source": "Wiki",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send request (a) with an empty body.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send request (b) with truncated JSON.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send request (c) with Content-Type text/plain.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Send request (d) with an XML body.",
+          "expected_result": "Each returns a controlled 400/415 in the standard error format, no 5xx and no row stored. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-063",
+      "title": "TGO - Wiki - Unsupported HTTP Methods Rejected",
+      "scenario": "Wiki - Unsupported HTTP Methods Rejected",
+      "test_condition": "Tenant/meta headers, site scoping and documented error codes honoured.",
+      "test_condition_id": "TCOND-015",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "EP",
+      "category": "API",
+      "priority": 3,
+      "severity": "Low",
+      "risk_rating": "Low",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "PUT, PATCH, DELETE to /S1/api/v1/player/receipt with a valid body",
+      "req_ids": [
+        "REQ-010"
+      ],
+      "source": "Wiki (POST route)",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the valid body using PUT.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Send the valid body using PATCH.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Send a DELETE to the route.",
+          "expected_result": "Each returns 405 Method Not Allowed (or 404) and no receipt is created, updated or deleted."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-064",
+      "title": "TGO - Shared Route - Full Ingestion Body For Existing Receipt Not Treated As Status Update",
+      "scenario": "Shared Route - Full Ingestion Body For Existing Receipt Not Treated As Status Update",
+      "test_condition": "Shared route never confuses ingestion with status update.",
+      "test_condition_id": "TCOND-017",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. R-D1 exists with receiptStatus=Issued.",
+      "test_data": "Full ingestion body with receiptIdentifier=R-D1, receiptStatus=\"Redeemed\", new transactionDate",
+      "req_ids": [
+        "REQ-012",
+        "REQ-010"
+      ],
+      "source": "Wiki (shared route); #1445170",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the full ingestion body for existing R-D1 with receiptStatus Redeemed.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for R-D1.",
+          "expected_result": "HTTP 400 Bad Request in the standard Connector error format (errorCode + message) TGO-CNT035 'Receipt already exists'; R-D1 remains Issued with its original transactionDate (not silently updated through the ingestion path). AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-065",
+      "title": "TGO - Shared Route - Partial Body For New Receipt Not Created",
+      "scenario": "Shared Route - Partial Body For New Receipt Not Created",
+      "test_condition": "Shared route never confuses ingestion with status update.",
+      "test_condition_id": "TCOND-017",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Functional",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "Medium",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Receipt R-N1 does not exist.",
+      "test_data": "Status-update shaped body {\"receiptIdentifier\":\"R-N1\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC>\"}",
+      "req_ids": [
+        "REQ-012",
+        "REQ-002"
+      ],
+      "source": "Wiki (shared route); #1445170",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the 3-field status-update shaped body for non-existent R-N1.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Query ModuleReceiptContent for R-N1.",
+          "expected_result": "Request is rejected (TGO-CNT038 'Receipt does not exist' or TGO-CNT034 'Missing required fields'); no receipt without HTML/metadata is created."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-066",
+      "title": "TGO - Scope - Ingestion Response Contains No Receipt List And Sends Nothing Synchronously",
+      "scenario": "Scope - Ingestion Response Contains No Receipt List And Sends Nothing Synchronously",
+      "test_condition": "Ingestion itself sends no notification and returns no receipt list.",
+      "test_condition_id": "TCOND-018",
+      "type": "Positive",
+      "test_level": "Component",
+      "technique": "EP",
+      "category": "API",
+      "priority": 3,
+      "severity": "Low",
+      "risk_rating": "Low",
+      "automation_feasibility": "High",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment.",
+      "test_data": "body {\"receiptIdentifier\":\"<new unique ID, e.g. OFFR-R0000001nn>\",\"moduleIdentifier\":\"<enabled module id, e.g. OfferMaker>\",\"description\":\"<offer description>\",\"templateName\":\"<template name>\",\"receiptHtml\":\"<fully generated receipt HTML>\",\"issuanceType\":\"Digital\",\"deliveryMethod\":\"Email\",\"receiptStatus\":\"Issued\",\"transactionDate\":\"<now UTC, e.g. 2026-10-01T18:55:17.675Z>\",\"expirationDate\":\"<future, e.g. 2026-10-31T18:55:17.675Z>\"} with deliveryMethod=\"Both\"",
+      "req_ids": [
+        "REQ-013"
+      ],
+      "source": "[Work Item AC] Dependencies and boundaries",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send the ingestion request and capture the full response body.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Inspect Connector logs for any direct email/SMS provider call during the request.",
+          "expected_result": "Response contains only the approved success payload (no receipt list, no receipt HTML echo); Connector ingestion makes no direct email/SMS provider call - delivery occurs only via #1349857 processing. AND verify response header: Content-Type = application/json"
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-067",
+      "title": "TGO - NFR - Concurrent Ingestion Of Same receiptIdentifier",
+      "scenario": "NFR - Concurrent Ingestion Of Same receiptIdentifier",
+      "test_condition": "Concurrency, retry, dependency outage, throughput and logging behaviour.",
+      "test_condition_id": "TCOND-019",
+      "type": "Negative",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Database",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Tool able to fire parallel requests (Postman runner / k6 / JMeter).",
+      "test_data": "10 parallel identical requests with receiptIdentifier=R-C1",
+      "req_ids": [
+        "REQ-014",
+        "REQ-002"
+      ],
+      "source": "Error Guessing; Wiki TGO-CNT035",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Fire 10 identical ingestion requests for R-C1 in parallel.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Collect all response codes.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query ModuleReceiptContent for R-C1.",
+          "expected_result": "Exactly one request returns HTTP 200 'Receipt ingested successfully.' and the others TGO-CNT035 (no 5xx/deadlock errors); exactly one R-C1 row exists."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-068",
+      "title": "TGO - NFR - Sustained Ingestion Throughput And Response Time",
+      "scenario": "NFR - Sustained Ingestion Throughput And Response Time",
+      "test_condition": "Concurrency, retry, dependency outage, throughput and logging behaviour.",
+      "test_condition_id": "TCOND-019",
+      "type": "Positive",
+      "test_level": "System",
+      "technique": "EP",
+      "category": "Performance",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Medium",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Performance SLA and expected peak receipts/minute confirmed with Product (not documented); load tool configured.",
+      "test_data": "Unique receipts with ~50 KB receiptHtml at expected peak rate for 30 minutes",
+      "req_ids": [
+        "REQ-014"
+      ],
+      "source": "Description (Trilogy volume); implied NFR",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Run the load at the expected peak rate for 30 minutes.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Monitor response times, error rate and Connector/DB resource usage.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Reconcile stored row count with successful responses.",
+          "expected_result": "Response times stay within the agreed SLA, error rate is 0% for valid requests, and stored rows equal the number of 200 responses."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-069",
+      "title": "TGO - NFR - Ingestion Outcomes Logged Without Sensitive Content",
+      "scenario": "NFR - Ingestion Outcomes Logged Without Sensitive Content",
+      "test_condition": "Concurrency, retry, dependency outage, throughput and logging behaviour.",
+      "test_condition_id": "TCOND-019",
+      "type": "Positive",
+      "test_level": "Integration",
+      "technique": "Error Guessing",
+      "category": "Security",
+      "priority": 3,
+      "severity": "Medium",
+      "risk_rating": "Medium",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Connector Content Service (TGO 2.8.0, PR 186702) deployed to QA; ingestion endpoint POST /{siteId}/api/v1/player/receipt reachable for active site S1; caller holds a valid x-evri-tenantid for S1's tenant and a valid x-evri-meta for player P1 (currently implemented format 'PlayerId;'); read access to the ModuleReceiptContent database for verification; REST client (Postman) configured for the QA environment. Access to Connector logs.",
+      "test_data": "One successful and one rejected (TGO-CNT034) ingestion",
+      "req_ids": [
+        "REQ-014",
+        "REQ-009"
+      ],
+      "source": "AC9; implied NFR",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Send one valid and one invalid ingestion request.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Search Connector logs for both requests.",
+          "expected_result": "Both outcomes are logged with timestamp, correlation id, site/tenant, receiptIdentifier and result code; tenant secrets, signature values and full receiptHtml are not written to logs."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-070",
+      "title": "TGO - E2E - OfferMaker Redemption At Kiosk Ingests Digital Receipt",
+      "scenario": "E2E - OfferMaker Redemption At Kiosk Ingests Digital Receipt",
+      "test_condition": "Kiosk redemption in Trilogy results in a stored, listable receipt in Loyalty Cloud.",
+      "test_condition_id": "TCOND-020",
+      "type": "Positive",
+      "test_level": "UAT",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "Critical",
+      "risk_rating": "High",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Trilogy kiosk (QA) connected to Connector QA; #1470255 deployed; OfferMaker offer configured to issue a digital receipt with Email delivery; player P1 carded in with a valid email. Navigation: Kiosk Home > Offers > <Offer> > Redeem.",
+      "test_data": "Player P1 card; OfferMaker offer O-DIG",
+      "req_ids": [
+        "REQ-015",
+        "REQ-001",
+        "REQ-005"
+      ],
+      "source": "Parent #1320913; Successor #1470255",
+      "steps": [
+        {
+          "index": 1,
+          "action": "At the kiosk, card in as P1 and navigate Kiosk Home > Offers > O-DIG.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Redeem the offer and choose the digital receipt option.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Check Connector logs for the ingestion request from Trilogy.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Query ModuleReceiptContent and the receipt-list API for P1.",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Check P1's mailbox.",
+          "expected_result": "Trilogy sends one ingestion request with the fully generated translated HTML; Connector returns 200; the receipt is stored as Digital/Email/Issued, appears in P1's receipt list, and the email with the Receipt URL is received."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-071",
+      "title": "TGO - E2E - Printed Kiosk Receipt Stored And Listed Under All Receipts",
+      "scenario": "E2E - Printed Kiosk Receipt Stored And Listed Under All Receipts",
+      "test_condition": "Kiosk redemption in Trilogy results in a stored, listable receipt in Loyalty Cloud.",
+      "test_condition_id": "TCOND-020",
+      "type": "Positive",
+      "test_level": "UAT",
+      "technique": "EP",
+      "category": "Functional",
+      "priority": 1,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Trilogy kiosk (QA) with printer connected to Connector QA; #1470255 deployed; property Technical Setting = All Receipts; player P1 carded in. Navigation: Kiosk Home > Offers > <Offer> > Redeem > Print.",
+      "test_data": "Player P1 card; offer O-PRN configured for printed receipt",
+      "req_ids": [
+        "REQ-015",
+        "REQ-004",
+        "REQ-003"
+      ],
+      "source": "Parent #1320913; Description",
+      "steps": [
+        {
+          "index": 1,
+          "action": "At the kiosk, redeem O-PRN as P1 and choose Print.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Collect the printed receipt.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Query ModuleReceiptContent for the new receipt.",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Call the receipt-list API for P1 and open the Receipt URL.",
+          "expected_result": ""
+        },
+        {
+          "index": 5,
+          "action": "Check P1's mailbox and SMS for any notification.",
+          "expected_result": "The printed receipt is stored as Printed/None with HTML matching the printed content, appears in the list under All Receipts, and no email/SMS is sent."
+        }
+      ]
+    },
+    {
+      "test_case_id": "TC-072",
+      "title": "TGO - E2E - Connector Unavailable During Kiosk Redemption Then Recovers",
+      "scenario": "E2E - Connector Unavailable During Kiosk Redemption Then Recovers",
+      "test_condition": "Kiosk redemption in Trilogy results in a stored, listable receipt in Loyalty Cloud.",
+      "test_condition_id": "TCOND-020",
+      "type": "Negative",
+      "test_level": "System",
+      "technique": "Error Guessing",
+      "category": "Recovery",
+      "priority": 2,
+      "severity": "High",
+      "risk_rating": "High",
+      "automation_feasibility": "Low",
+      "work_item_type": "Test Case",
+      "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "shanmugam, aravind <aravind.shanmugam@igt.com>",
+      "preconditions": "Kiosk QA environment; ability to stop the Connector Content Service temporarily.",
+      "test_data": "Player P1; offer O-DIG",
+      "req_ids": [
+        "REQ-015",
+        "REQ-009"
+      ],
+      "source": "Successor #1470255; AC9",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Stop the Connector Content Service.",
+          "expected_result": ""
+        },
+        {
+          "index": 2,
+          "action": "Redeem O-DIG at the kiosk as P1.",
+          "expected_result": ""
+        },
+        {
+          "index": 3,
+          "action": "Restart the Content Service and allow Trilogy retry (if designed).",
+          "expected_result": ""
+        },
+        {
+          "index": 4,
+          "action": "Query ModuleReceiptContent for P1's new receipt.",
+          "expected_result": "Kiosk redemption is not corrupted by the outage; Trilogy logs the failed call with the Connector error/correlation; after recovery the receipt is ingested exactly once (or the gap is reported per the #1470255 retry design)."
+        }
+      ]
+    }
+  ],
+  "traceability_matrix": [
+    {
+      "req_id": "REQ-001",
+      "test_conditions": [
+        "TCOND-001",
+        "TCOND-002",
+        "TCOND-020"
+      ],
+      "test_case_ids": [
+        "TC-001",
+        "TC-002",
+        "TC-003",
+        "TC-004",
+        "TC-005",
+        "TC-006",
+        "TC-007",
+        "TC-070"
+      ],
+      "levels": [
+        "Integration",
+        "UAT"
+      ],
+      "techniques": [
+        "EP",
+        "BVA",
+        "Error Guessing"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-002",
+      "test_conditions": [
+        "TCOND-003",
+        "TCOND-004",
+        "TCOND-005",
+        "TCOND-001",
+        "TCOND-017",
+        "TCOND-019"
+      ],
+      "test_case_ids": [
+        "TC-001",
+        "TC-008",
+        "TC-009",
+        "TC-010",
+        "TC-011",
+        "TC-012",
+        "TC-013",
+        "TC-014",
+        "TC-015",
+        "TC-016",
+        "TC-017",
+        "TC-065",
+        "TC-067"
+      ],
+      "levels": [
+        "Integration"
+      ],
+      "techniques": [
+        "EP",
+        "BVA",
+        "Error Guessing"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-003",
+      "test_conditions": [
+        "TCOND-006",
+        "TCOND-007",
+        "TCOND-020"
+      ],
+      "test_case_ids": [
+        "TC-018",
+        "TC-019",
+        "TC-020",
+        "TC-021",
+        "TC-022",
+        "TC-023",
+        "TC-024",
+        "TC-071"
+      ],
+      "levels": [
+        "Integration",
+        "System",
+        "Component",
+        "UAT"
+      ],
+      "techniques": [
+        "EP",
+        "BVA",
+        "Error Guessing",
+        "Decision Table"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-004",
+      "test_conditions": [
+        "TCOND-008",
+        "TCOND-006",
+        "TCOND-007",
+        "TCOND-020"
+      ],
+      "test_case_ids": [
+        "TC-018",
+        "TC-022",
+        "TC-023",
+        "TC-025",
+        "TC-026",
+        "TC-027",
+        "TC-071"
+      ],
+      "levels": [
+        "Integration",
+        "System",
+        "UAT"
+      ],
+      "techniques": [
+        "EP",
+        "Error Guessing",
+        "Decision Table"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-005",
+      "test_conditions": [
+        "TCOND-009",
+        "TCOND-008",
+        "TCOND-020"
+      ],
+      "test_case_ids": [
+        "TC-027",
+        "TC-028",
+        "TC-029",
+        "TC-030",
+        "TC-031",
+        "TC-032",
+        "TC-033",
+        "TC-070"
+      ],
+      "levels": [
+        "Integration",
+        "UAT"
+      ],
+      "techniques": [
+        "Decision Table",
+        "EP"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-006",
+      "test_conditions": [
+        "TCOND-010",
+        "TCOND-011",
+        "TCOND-005"
+      ],
+      "test_case_ids": [
+        "TC-016",
+        "TC-034",
+        "TC-035",
+        "TC-036",
+        "TC-037",
+        "TC-038",
+        "TC-039",
+        "TC-040"
+      ],
+      "levels": [
+        "Integration"
+      ],
+      "techniques": [
+        "EP",
+        "BVA"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-007",
+      "test_conditions": [
+        "TCOND-012"
+      ],
+      "test_case_ids": [
+        "TC-041",
+        "TC-042",
+        "TC-043"
+      ],
+      "levels": [
+        "System",
+        "Integration"
+      ],
+      "techniques": [
+        "EP",
+        "Error Guessing"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-008",
+      "test_conditions": [
+        "TCOND-013"
+      ],
+      "test_case_ids": [
+        "TC-044",
+        "TC-045",
+        "TC-046",
+        "TC-047",
+        "TC-048"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "EP",
+        "Decision Table"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-009",
+      "test_conditions": [
+        "TCOND-014",
+        "TCOND-003",
+        "TCOND-006",
+        "TCOND-008",
+        "TCOND-009",
+        "TCOND-019",
+        "TCOND-020"
+      ],
+      "test_case_ids": [
+        "TC-010",
+        "TC-019",
+        "TC-025",
+        "TC-032",
+        "TC-049",
+        "TC-050",
+        "TC-051",
+        "TC-052",
+        "TC-069",
+        "TC-072"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "Error Guessing",
+        "EP",
+        "Decision Table"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-010",
+      "test_conditions": [
+        "TCOND-015",
+        "TCOND-001",
+        "TCOND-002",
+        "TCOND-003",
+        "TCOND-004",
+        "TCOND-005",
+        "TCOND-011",
+        "TCOND-012",
+        "TCOND-016",
+        "TCOND-017"
+      ],
+      "test_case_ids": [
+        "TC-001",
+        "TC-003",
+        "TC-008",
+        "TC-011",
+        "TC-013",
+        "TC-014",
+        "TC-017",
+        "TC-036",
+        "TC-037",
+        "TC-042",
+        "TC-043",
+        "TC-053",
+        "TC-054",
+        "TC-055",
+        "TC-056",
+        "TC-058",
+        "TC-059",
+        "TC-060",
+        "TC-061",
+        "TC-062",
+        "TC-063",
+        "TC-064"
+      ],
+      "levels": [
+        "Integration"
+      ],
+      "techniques": [
+        "EP",
+        "Error Guessing",
+        "BVA"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-011",
+      "test_conditions": [
+        "TCOND-016"
+      ],
+      "test_case_ids": [
+        "TC-056",
+        "TC-057",
+        "TC-058"
+      ],
+      "levels": [
+        "Integration"
+      ],
+      "techniques": [
+        "BVA",
+        "Error Guessing",
+        "EP"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-012",
+      "test_conditions": [
+        "TCOND-017"
+      ],
+      "test_case_ids": [
+        "TC-064",
+        "TC-065"
+      ],
+      "levels": [
+        "Integration"
+      ],
+      "techniques": [
+        "Error Guessing"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-013",
+      "test_conditions": [
+        "TCOND-018",
+        "TCOND-008"
+      ],
+      "test_case_ids": [
+        "TC-026",
+        "TC-066"
+      ],
+      "levels": [
+        "Integration",
+        "Component"
+      ],
+      "techniques": [
+        "EP"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-014",
+      "test_conditions": [
+        "TCOND-019",
+        "TCOND-002",
+        "TCOND-014",
+        "TCOND-015"
+      ],
+      "test_case_ids": [
+        "TC-006",
+        "TC-007",
+        "TC-050",
+        "TC-051",
+        "TC-052",
+        "TC-061",
+        "TC-067",
+        "TC-068",
+        "TC-069"
+      ],
+      "levels": [
+        "Integration",
+        "System"
+      ],
+      "techniques": [
+        "BVA",
+        "Error Guessing",
+        "EP"
+      ],
+      "covered": true
+    },
+    {
+      "req_id": "REQ-015",
+      "test_conditions": [
+        "TCOND-020"
+      ],
+      "test_case_ids": [
+        "TC-070",
+        "TC-071",
+        "TC-072"
+      ],
+      "levels": [
+        "UAT",
+        "System"
+      ],
+      "techniques": [
+        "EP",
+        "Error Guessing"
+      ],
+      "covered": true
+    }
+  ],
+  "coverage": {
+    "by_type": {
+      "Positive": 24,
+      "Negative": 39,
+      "Boundary": 9
+    },
+    "by_level": {
+      "Component": 2,
+      "Integration": 62,
+      "System": 6,
+      "UAT": 2
+    },
+    "by_category": {
+      "Functional": 18,
+      "Security": 11,
+      "Performance": 1,
+      "Accessibility": 0,
+      "Compatibility": 0,
+      "Portability": 0,
+      "Reliability": 0,
+      "Recovery": 3,
+      "API": 33,
+      "Database": 6,
+      "Usability": 0
+    },
+    "by_technique": {
+      "EP": 39,
+      "BVA": 9,
+      "Decision Table": 4,
+      "State Transition": 0,
+      "Use Case": 0,
+      "Pairwise": 0,
+      "Error Guessing": 20,
+      "Exploratory": 0,
+      "Checklist-Based": 0,
+      "Statement Coverage": 0,
+      "Decision Coverage": 0,
+      "Condition Coverage": 0,
+      "Path Coverage": 0
+    },
+    "by_requirement": [
+      {
+        "req_id": "REQ-001",
+        "case_count": 8
+      },
+      {
+        "req_id": "REQ-002",
+        "case_count": 13
+      },
+      {
+        "req_id": "REQ-003",
+        "case_count": 8
+      },
+      {
+        "req_id": "REQ-004",
+        "case_count": 7
+      },
+      {
+        "req_id": "REQ-005",
+        "case_count": 8
+      },
+      {
+        "req_id": "REQ-006",
+        "case_count": 8
+      },
+      {
+        "req_id": "REQ-007",
+        "case_count": 3
+      },
+      {
+        "req_id": "REQ-008",
+        "case_count": 5
+      },
+      {
+        "req_id": "REQ-009",
+        "case_count": 10
+      },
+      {
+        "req_id": "REQ-010",
+        "case_count": 22
+      },
+      {
+        "req_id": "REQ-011",
+        "case_count": 3
+      },
+      {
+        "req_id": "REQ-012",
+        "case_count": 2
+      },
+      {
+        "req_id": "REQ-013",
+        "case_count": 2
+      },
+      {
+        "req_id": "REQ-014",
+        "case_count": 9
+      },
+      {
+        "req_id": "REQ-015",
+        "case_count": 3
+      }
+    ],
+    "examples_mapping_confirmed": true
+  },
+  "risk_coverage": {
+    "by_rating": {
+      "High": 45,
+      "Medium": 24,
+      "Low": 3
+    },
+    "high_risk_requirements": [
+      {
+        "req_id": "REQ-001",
+        "case_count": 8,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-002",
+        "case_count": 13,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-003",
+        "case_count": 8,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-004",
+        "case_count": 7,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-005",
+        "case_count": 8,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-006",
+        "case_count": 8,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-007",
+        "case_count": 3,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-009",
+        "case_count": 10,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-010",
+        "case_count": 22,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-011",
+        "case_count": 3,
+        "covered": true
+      },
+      {
+        "req_id": "REQ-015",
+        "case_count": 3,
+        "covered": true
+      }
+    ]
+  },
+  "missing_requirements": [
+    "Signature/authorization requirement for the ingestion API is not documented in the wiki (QA observed success without Signature - Comment #13585124).",
+    "Final x-evri-meta format ('PlayerId;' vs 'PlayerId;ModuleIdentifier;ModuleRecordIdentifier') not confirmed.",
+    "Error codes for invalid enum values, invalid receipt HTML, invalid date formats, unknown module and disabled module are not listed for this API.",
+    "Maximum receiptHtml size and receiptIdentifier length are not specified.",
+    "'Existing contact and transaction identifiers required by the current integration' (Description) are not present in the documented request body.",
+    "Performance SLA / expected ingestion volume not specified.",
+    "Legacy (pre-2.8.0) contract and its caller list are not documented, so the AC7 compatibility review evidence is unavailable."
+  ],
+  "ambiguous_requirements": [
+    {
+      "req_id": "REQ-001",
+      "issue": "'Invalid receipt HTML' is not defined (plain text? malformed markup? script content?).",
+      "assumption_made": "Non-string values are rejected; string validity follows the approved definition - TC-005/TC-007 record actual behaviour."
+    },
+    {
+      "req_id": "REQ-002",
+      "issue": "Which body fields are mandatory (description shown as empty in the wiki sample) and the Receipt ID uniqueness scope.",
+      "assumption_made": "All fields except description are required; uniqueness is per tenant/site."
+    },
+    {
+      "req_id": "REQ-004",
+      "issue": "Whether a Printed receipt may carry deliveryMethod Email/SMS/Both.",
+      "assumption_made": "Either rejected or accepted without auto-notification (TC-027)."
+    },
+    {
+      "req_id": "REQ-006",
+      "issue": "Whether transactionDate equal to expirationDate is valid, and whether an already-past expirationDate is accepted at ingestion.",
+      "assumption_made": "Equal is accepted; past expiration handled per approved rule (TC-037, TC-039)."
+    },
+    {
+      "req_id": "REQ-009",
+      "issue": "AC boundary says this item 'does not persist the receipt directly' while the wiki shows the API writing to ModuleReceiptContent.",
+      "assumption_made": "DB verification of ModuleReceiptContent is used as the storage hand-off evidence."
+    },
+    {
+      "req_id": "REQ-011",
+      "issue": "Precedence when both tenant and meta are invalid.",
+      "assumption_made": "Tenant validation first (TGO-CNT014)."
+    },
+    {
+      "req_id": "REQ-003",
+      "issue": "Case sensitivity of enum values (issuanceType, deliveryMethod, receiptStatus).",
+      "assumption_made": "Documented casing is canonical; variants rejected or normalised consistently."
+    }
+  ],
+  "exploratory_test_ideas": [
+    "Charter: explore receipts in right-to-left languages and very long single-line HTML to find storage/rendering issues in the hosted receipt.",
+    "Charter: ingest receipts with HTML referencing external images/CSS that are later unavailable and observe the Receipt URL rendering.",
+    "Charter: rapidly alternate module enable/disable while Trilogy is sending receipts to find race conditions.",
+    "Charter: ingest then immediately status-update (#1445170) the same receipt within milliseconds to probe ordering on the shared route.",
+    "Charter: compare receipt content stored for the same offer across languages configured on the kiosk.",
+    "Charter: replay a captured valid request after tenant credentials rotate to probe stale-credential acceptance."
+  ],
+  "change_log": {},
+  "discrepancies": [],
+  "warnings": [
+    "Config user_story_title_keywords ('TGO - Updating the status and transaction details of existing receipts') and excel.output_file_basename ('TGO_1445170_TestCases') refer to #1445170, but user_story_id is 1445168 (title 'Enhance and Version Receipt Content Ingestion API'). The ID was used; the Excel was written as TGO_1445168_TestCases.xlsx to avoid overwriting the #1445170 workbook.",
+    "QA Comment #13585124 reports success without Signature authentication - TC-057 expects rejection; log a defect if still reproducible.",
+    "Error codes not documented for this API (invalid enum/HTML/date, module errors, signature) reference the Content Service catalogue (Wiki 169844) as expected values - confirm with Dev before execution.",
+    "Receipt IDs such as R-D1/R-P1 and site/player/offer identifiers (S1, P1, O1) are placeholders to be created during test setup; no real IDs were fabricated.",
+    "Comment image 2 (older wiki) showed a combined 'Invalid Meta / Invalid Tenant' TGO-CNT027 row; the current wiki now lists TGO-CNT014 and TGO-CNT027 separately - TC-058 verifies the implementation matches."
+  ]
+}

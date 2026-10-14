@@ -1,0 +1,11 @@
+<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="15.632513000000001">
+<testsuite name="specs/segment-creation-smoke.spec.ts" timestamp="2026-10-13T09:26:26.674Z" hostname="" tests="1" failures="0" skipped="0" time="14.005" errors="0">
+<testcase name="creates a Segment with audience conditions and verifies it in the listing" classname="specs/segment-creation-smoke.spec.ts" time="14.005">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|specs-segment-creation-smo-63c08--verifies-it-in-the-listing/video.webm]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+</testsuites>

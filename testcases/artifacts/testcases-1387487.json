@@ -1,0 +1,811 @@
+{
+  "story_id": 1387487,
+  "analysis": {
+    "business_rules": [
+      "BR-01: TGO navigation must mirror the Trilogy platform structure and hierarchy (source: story description).",
+      "BR-02: Report navigation items must respect the existing report-permission model (report-permission changes already completed in a prior story).",
+      "BR-03: Admin-only navigation options must be visible only to authorized administrators (role-based visibility).",
+      "BR-04: Administrative and configuration options live in the right-side Settings menu, not the left navigation.",
+      "BR-05: Navigation behavior (expanded, collapsed, hover) must be consistent with the Trilogy platform reference screenshots."
+    ],
+    "functional_requirements": [
+      "REQ-001: Reports remains available in the left navigation.",
+      "REQ-002: An Admin Reports submenu is displayed under Reports.",
+      "REQ-003: TGO Service Activity Report is displayed under Reports > Admin Reports.",
+      "REQ-004: The Service Activity Report navigation item respects the applicable report permissions.",
+      "REQ-005: Administrative and configuration options are available from the right-side Settings menu.",
+      "REQ-006: An Admin Config section is displayed in Settings.",
+      "REQ-007: Tenants is accessible through Settings > Admin Config > Tenants.",
+      "REQ-008: Sites is accessible through Settings > System > Sites.",
+      "REQ-009: Admin-only navigation options are visible only to authorized administrators.",
+      "REQ-012: Existing navigation functionality and authorized access continue to work without regression."
+    ],
+    "non_functional_requirements": [
+      "REQ-010: The navigation works correctly in both expanded and collapsed states.",
+      "REQ-011: Hover navigation behaves consistently with the Trilogy platform."
+    ],
+    "dependencies": [
+      "Report-permission changes for the TGO Service Activity Report (completed per story description).",
+      "Trilogy platform reference screenshots (5 attachments) define the expected structure — unreadable by this model run; saved to Downloads for human comparison.",
+      "Access to the Trilogy platform (or its screenshots) for side-by-side hover/structure comparison.",
+      "TGO QA test instance: https://trilogy-go-qa01.purplecheckpoint.com/tgo (from workflow config)."
+    ],
+    "constraints": [
+      "Role-based access and visibility must be preserved during the menu restructure.",
+      "Reports menu already exists; only the new hierarchy and moves are in scope."
+    ],
+    "assumptions": [
+      "ASM-01: 'Administrative and configuration options' moved to Settings include at least Tenants (Admin Config) and Sites (System); the complete list of moved items is defined by the attached screenshots.",
+      "ASM-02: Users/roles exist in QA covering: full admin, user with Service Activity Report permission only, and user with no admin/report permissions.",
+      "ASM-03: The Settings menu is invoked from a right-side control (gear/avatar) consistent with Trilogy."
+    ],
+    "test_conditions": [
+      { "id": "TCOND-001", "req_id": "REQ-001", "text": "Reports item is present and functional in the left navigation.", "risk_rating": "Medium" },
+      { "id": "TCOND-002", "req_id": "REQ-002", "text": "Admin Reports submenu renders under Reports.", "risk_rating": "Medium" },
+      { "id": "TCOND-003", "req_id": "REQ-003", "text": "TGO Service Activity Report is reachable via Reports > Admin Reports.", "risk_rating": "Medium" },
+      { "id": "TCOND-004", "req_id": "REQ-004", "text": "Service Activity Report nav item is shown only with the applicable report permission and is enforced server-side.", "risk_rating": "High" },
+      { "id": "TCOND-005", "req_id": "REQ-005", "text": "Administrative/configuration options appear in the right-side Settings menu and no longer in their old locations.", "risk_rating": "Medium" },
+      { "id": "TCOND-006", "req_id": "REQ-006", "text": "Admin Config section renders inside Settings.", "risk_rating": "Medium" },
+      { "id": "TCOND-007", "req_id": "REQ-007", "text": "Tenants opens via Settings > Admin Config > Tenants.", "risk_rating": "Medium" },
+      { "id": "TCOND-008", "req_id": "REQ-008", "text": "Sites opens via Settings > System > Sites.", "risk_rating": "Medium" },
+      { "id": "TCOND-009", "req_id": "REQ-009", "text": "Admin-only options are visible/usable only by authorized administrators, in UI and on direct URL access.", "risk_rating": "High" },
+      { "id": "TCOND-010", "req_id": "REQ-010", "text": "All navigation paths work in expanded and collapsed states, including toggling between them.", "risk_rating": "Medium" },
+      { "id": "TCOND-011", "req_id": "REQ-011", "text": "Hover flyout/highlight behavior matches the Trilogy platform.", "risk_rating": "Medium" },
+      { "id": "TCOND-012", "req_id": "REQ-012", "text": "Pre-existing navigation items, routes, and role access are unchanged (regression).", "risk_rating": "High" }
+    ],
+    "coverage_criteria": [
+      { "criterion": "100% AC coverage", "target": "All 12 acceptance criteria mapped to >=1 test case", "achieved": true },
+      { "criterion": "Positive + Negative per permission-bearing AC", "target": "REQ-004 and REQ-009 each have >=1 Positive and >=1 Negative case incl. direct-URL bypass", "achieved": true },
+      { "criterion": "State coverage", "target": "Expanded, collapsed, and expand<->collapse transition states each exercised", "achieved": true },
+      { "criterion": "Role matrix", "target": "Admin / report-permission-only / no-permission roles each exercised against new menu items", "achieved": true }
+    ]
+  },
+  "shared_setups": [
+    { "id": "SETUP-01", "description": "Full administrator logged into TGO QA (https://trilogy-go-qa01.purplecheckpoint.com/tgo) with all admin and report permissions.", "steps": ["Log in to TGO QA as {{ADMIN_USERNAME}} (full admin role)."] },
+    { "id": "SETUP-02", "description": "Non-admin user logged into TGO QA with NO admin-only permissions and NO Service Activity Report permission.", "steps": ["Log in to TGO QA as {{NONADMIN_USERNAME}} (standard user role)."] },
+    { "id": "SETUP-03", "description": "User logged into TGO QA holding the Service Activity Report permission but NOT the full admin role.", "steps": ["Log in to TGO QA as {{REPORT_USER_USERNAME}} (report-permission-only role)."] }
+  ],
+  "test_cases": [
+    {
+      "test_case_id": "TC-001",
+      "title": "TGO - Reports Menu Remains In Left Navigation",
+      "scenario": "Reports Menu Remains In Left Navigation",
+      "test_condition": "Reports item is present and functional in the left navigation.",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 2, "severity": "High", "risk_rating": "Medium", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01 (full admin logged in). Breadcrumb: TGO Home > Left Navigation.",
+      "test_data": "User: {{ADMIN_USERNAME}} (full admin)",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None (read-only navigation).", "suite_tier": "Smoke", "reusable": true,
+      "estimated_minutes": 3, "execution_order": 1, "blocks": ["TC-002", "TC-003"],
+      "req_ids": ["REQ-001"],
+      "source": "[Work Item AC] 1387487 - AC1",
+      "steps": [
+        { "index": 1, "action": "From TGO Home, inspect the left navigation menu.", "expected_result": "" },
+        { "index": 2, "action": "Locate the 'Reports' menu item and click it.", "expected_result": "'Reports' is displayed in the left navigation and clicking it expands/opens the Reports menu without error." }
+      ]
+    },
+    {
+      "test_case_id": "TC-002",
+      "title": "TGO - Admin Reports Submenu Displayed Under Reports",
+      "scenario": "Admin Reports Submenu Displayed Under Reports",
+      "test_condition": "Admin Reports submenu renders under Reports.",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 2, "severity": "High", "risk_rating": "Medium", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Breadcrumb: TGO Home > Left Navigation > Reports.",
+      "test_data": "User: {{ADMIN_USERNAME}}",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Smoke", "reusable": true,
+      "estimated_minutes": 3, "execution_order": 2, "blocks": ["TC-003"],
+      "req_ids": ["REQ-002"],
+      "source": "[Work Item AC] 1387487 - AC2",
+      "steps": [
+        { "index": 1, "action": "In the left navigation, expand the 'Reports' menu.", "expected_result": "" },
+        { "index": 2, "action": "Inspect the submenu entries displayed under Reports.", "expected_result": "An 'Admin Reports' submenu is displayed under Reports, positioned per the Trilogy reference structure." }
+      ]
+    },
+    {
+      "test_case_id": "TC-003",
+      "title": "TGO - Service Activity Report Under Reports > Admin Reports",
+      "scenario": "Service Activity Report Under Reports > Admin Reports",
+      "test_condition": "TGO Service Activity Report is reachable via Reports > Admin Reports.",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 1, "severity": "High", "risk_rating": "Medium", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Breadcrumb: TGO Home > Left Navigation > Reports > Admin Reports.",
+      "test_data": "User: {{ADMIN_USERNAME}}",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Smoke", "reusable": true,
+      "estimated_minutes": 4, "execution_order": 3, "blocks": [],
+      "req_ids": ["REQ-003"],
+      "source": "[Work Item AC] 1387487 - AC3",
+      "steps": [
+        { "index": 1, "action": "Expand Reports in the left navigation, then expand 'Admin Reports'.", "expected_result": "" },
+        { "index": 2, "action": "Verify 'TGO Service Activity Report' is listed under Reports > Admin Reports.", "expected_result": "" },
+        { "index": 3, "action": "Click 'TGO Service Activity Report'.", "expected_result": "The TGO Service Activity Report page opens (URL routes to the report view) with no error; the nav item under Reports > Admin Reports is highlighted as active." }
+      ]
+    },
+    {
+      "test_case_id": "TC-004",
+      "title": "TGO - Report Permission Grants Service Activity Report Access",
+      "scenario": "Report Permission Grants Service Activity Report Access",
+      "test_condition": "Service Activity Report nav item is shown to a user holding the applicable report permission.",
+      "type": "Positive", "test_level": "System", "technique": "Decision Table", "category": "Functional",
+      "priority": 1, "severity": "Critical", "risk_rating": "High", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-03 (user with Service Activity Report permission, not full admin). Breadcrumb: TGO Home > Left Navigation > Reports > Admin Reports.",
+      "test_data": "User: {{REPORT_USER_USERNAME}} (Service Activity Report permission granted)",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 4, "execution_order": 4, "blocks": [],
+      "req_ids": ["REQ-004"],
+      "source": "[Work Item AC] 1387487 - AC4",
+      "steps": [
+        { "index": 1, "action": "Expand Reports > Admin Reports in the left navigation.", "expected_result": "" },
+        { "index": 2, "action": "Click 'TGO Service Activity Report'.", "expected_result": "The nav item is visible to this permitted user and the report page opens successfully." }
+      ]
+    },
+    {
+      "test_case_id": "TC-005",
+      "title": "TGO - Service Activity Report Hidden Without Report Permission",
+      "scenario": "Service Activity Report Hidden Without Report Permission",
+      "test_condition": "Service Activity Report nav item is hidden from a user lacking the report permission.",
+      "type": "Negative", "test_level": "System", "technique": "Decision Table", "category": "Functional",
+      "priority": 1, "severity": "Critical", "risk_rating": "High", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-02 (user WITHOUT Service Activity Report permission). Breadcrumb: TGO Home > Left Navigation > Reports.",
+      "test_data": "User: {{NONADMIN_USERNAME}} (no report permission)",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 4, "execution_order": 5, "blocks": [],
+      "req_ids": ["REQ-004"],
+      "source": "[Work Item AC] 1387487 - AC4",
+      "steps": [
+        { "index": 1, "action": "Expand Reports in the left navigation.", "expected_result": "" },
+        { "index": 2, "action": "Inspect the Admin Reports submenu (if displayed) for 'TGO Service Activity Report'.", "expected_result": "'TGO Service Activity Report' is NOT displayed to this user; no broken/empty placeholder entry appears." }
+      ]
+    },
+    {
+      "test_case_id": "TC-006",
+      "title": "TGO - Direct URL To Service Activity Report Denied Without Permission",
+      "scenario": "Direct URL To Service Activity Report Denied Without Permission",
+      "test_condition": "Server-side enforcement: report URL is rejected for a user without the report permission.",
+      "type": "Negative", "test_level": "System", "technique": "Error Guessing", "category": "Security",
+      "priority": 1, "severity": "Critical", "risk_rating": "High", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-02. Obtain the Service Activity Report URL beforehand from an admin session (TC-003).",
+      "test_data": "User: {{NONADMIN_USERNAME}}; URL: Service Activity Report route captured in TC-003",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 4, "execution_order": 6, "blocks": [],
+      "req_ids": ["REQ-004", "REQ-009"],
+      "source": "[Work Item AC] 1387487 - AC4, AC9",
+      "steps": [
+        { "index": 1, "action": "As the non-permitted user, paste the Service Activity Report URL directly into the browser address bar and navigate.", "expected_result": "" },
+        { "index": 2, "action": "Observe the application response.", "expected_result": "Access is denied (access-denied/unauthorized page or redirect away from the report); no report data is rendered or returned." }
+      ]
+    },
+    {
+      "test_case_id": "TC-007",
+      "title": "TGO - Admin And Config Options Available In Right-Side Settings Menu",
+      "scenario": "Admin And Config Options Available In Right-Side Settings Menu",
+      "test_condition": "Administrative/configuration options appear in the right-side Settings menu.",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 2, "severity": "High", "risk_rating": "Medium", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Breadcrumb: TGO Home > Right-Side Settings Menu.",
+      "test_data": "User: {{ADMIN_USERNAME}}",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Smoke", "reusable": true,
+      "estimated_minutes": 3, "execution_order": 7, "blocks": ["TC-008", "TC-009", "TC-011"],
+      "req_ids": ["REQ-005"],
+      "source": "[Work Item AC] 1387487 - AC5",
+      "steps": [
+        { "index": 1, "action": "Click the Settings control on the right side of the TGO header.", "expected_result": "" },
+        { "index": 2, "action": "Inspect the Settings menu contents.", "expected_result": "The Settings menu opens from the right side and lists the administrative and configuration options (including Admin Config and System sections) per the Trilogy reference structure." }
+      ]
+    },
+    {
+      "test_case_id": "TC-008",
+      "title": "TGO - Admin Config Section Displayed In Settings",
+      "scenario": "Admin Config Section Displayed In Settings",
+      "test_condition": "Admin Config section renders inside Settings.",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 2, "severity": "High", "risk_rating": "Medium", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Breadcrumb: TGO Home > Settings.",
+      "test_data": "User: {{ADMIN_USERNAME}}",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Smoke", "reusable": true,
+      "estimated_minutes": 3, "execution_order": 8, "blocks": ["TC-009"],
+      "req_ids": ["REQ-006"],
+      "source": "[Work Item AC] 1387487 - AC6",
+      "steps": [
+        { "index": 1, "action": "Open the right-side Settings menu.", "expected_result": "" },
+        { "index": 2, "action": "Locate the 'Admin Config' section.", "expected_result": "An 'Admin Config' section is displayed within the Settings menu." }
+      ]
+    },
+    {
+      "test_case_id": "TC-009",
+      "title": "TGO - Tenants Accessible Via Settings > Admin Config > Tenants",
+      "scenario": "Tenants Accessible Via Settings > Admin Config > Tenants",
+      "test_condition": "Tenants opens via Settings > Admin Config > Tenants.",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 1, "severity": "High", "risk_rating": "Medium", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Breadcrumb: TGO Home > Settings > Admin Config > Tenants.",
+      "test_data": "User: {{ADMIN_USERNAME}}",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None (view only — do not modify tenant data).", "suite_tier": "Smoke", "reusable": true,
+      "estimated_minutes": 4, "execution_order": 9, "blocks": [],
+      "req_ids": ["REQ-007"],
+      "source": "[Work Item AC] 1387487 - AC7",
+      "steps": [
+        { "index": 1, "action": "Open the right-side Settings menu and expand the 'Admin Config' section.", "expected_result": "" },
+        { "index": 2, "action": "Click 'Tenants'.", "expected_result": "The Tenants page opens successfully and displays the tenants view without error." }
+      ]
+    },
+    {
+      "test_case_id": "TC-010",
+      "title": "TGO - Moved Admin Options No Longer Shown In Previous Locations",
+      "scenario": "Moved Admin Options No Longer Shown In Previous Locations",
+      "test_condition": "Administrative/configuration options moved to Settings do not remain duplicated in their old navigation locations.",
+      "type": "Negative", "test_level": "System", "technique": "Error Guessing", "category": "Functional",
+      "priority": 2, "severity": "Medium", "risk_rating": "Medium", "automation_feasibility": "Medium",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Record the pre-change locations of Tenants/Sites/admin options (from current production or the 'Modification to the menu on Trilogy Go' attachment). Breadcrumb: TGO Home > Left Navigation.",
+      "test_data": "User: {{ADMIN_USERNAME}}",
+      "oracle": "TBD — confirm with PO", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "None.", "suite_tier": "One-time", "reusable": false,
+      "estimated_minutes": 5, "execution_order": 10, "blocks": [],
+      "req_ids": ["REQ-005"],
+      "source": "[Work Item AC] 1387487 - AC5 + description ('Move administrative and configuration options to the right-side Settings menu')",
+      "steps": [
+        { "index": 1, "action": "Inspect the left navigation and any other pre-change menu locations where the administrative/configuration options (e.g. Tenants, Sites) previously appeared.", "expected_result": "" },
+        { "index": 2, "action": "Compare against the attached 'Modification to the menu on Trilogy Go' reference.", "expected_result": "Moved options no longer appear in their old locations (no duplicates); TBD — confirm with PO the exact list of moved items and their removed locations (screenshots unreadable in this run)." }
+      ]
+    },
+    {
+      "test_case_id": "TC-011",
+      "title": "TGO - Sites Accessible Via Settings > System > Sites",
+      "scenario": "Sites Accessible Via Settings > System > Sites",
+      "test_condition": "Sites opens via Settings > System > Sites.",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 1, "severity": "High", "risk_rating": "Medium", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Breadcrumb: TGO Home > Settings > System > Sites.",
+      "test_data": "User: {{ADMIN_USERNAME}}",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None (view only).", "suite_tier": "Smoke", "reusable": true,
+      "estimated_minutes": 4, "execution_order": 11, "blocks": [],
+      "req_ids": ["REQ-008"],
+      "source": "[Work Item AC] 1387487 - AC8",
+      "steps": [
+        { "index": 1, "action": "Open the right-side Settings menu and expand the 'System' section.", "expected_result": "" },
+        { "index": 2, "action": "Click 'Sites'.", "expected_result": "The Sites page opens successfully from Settings > System > Sites and displays the sites view without error." }
+      ]
+    },
+    {
+      "test_case_id": "TC-012",
+      "title": "TGO - Administrator Sees All Admin-Only Navigation Options",
+      "scenario": "Administrator Sees All Admin-Only Navigation Options",
+      "test_condition": "Authorized administrator sees every admin-only navigation option.",
+      "type": "Positive", "test_level": "System", "technique": "Decision Table", "category": "Functional",
+      "priority": 1, "severity": "Critical", "risk_rating": "High", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Breadcrumb: TGO Home > Left Navigation + Settings.",
+      "test_data": "User: {{ADMIN_USERNAME}} (authorized administrator)",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 5, "execution_order": 12, "blocks": [],
+      "req_ids": ["REQ-009"],
+      "source": "[Work Item AC] 1387487 - AC9",
+      "steps": [
+        { "index": 1, "action": "Verify Reports > Admin Reports > TGO Service Activity Report is visible in the left navigation.", "expected_result": "" },
+        { "index": 2, "action": "Open Settings and verify Admin Config > Tenants and System > Sites are visible.", "expected_result": "All admin-only navigation options (Admin Reports, TGO Service Activity Report, Admin Config, Tenants, Sites per reference) are visible and enabled for the administrator." }
+      ]
+    },
+    {
+      "test_case_id": "TC-013",
+      "title": "TGO - Admin-Only Options Hidden From Non-Admin User",
+      "scenario": "Admin-Only Options Hidden From Non-Admin User",
+      "test_condition": "Admin-only navigation options are hidden from a non-admin user in both left nav and Settings.",
+      "type": "Negative", "test_level": "System", "technique": "Decision Table", "category": "Functional",
+      "priority": 1, "severity": "Critical", "risk_rating": "High", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-02 (non-admin). Breadcrumb: TGO Home > Left Navigation + Settings.",
+      "test_data": "User: {{NONADMIN_USERNAME}} (no admin permissions)",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 5, "execution_order": 13, "blocks": [],
+      "req_ids": ["REQ-009"],
+      "source": "[Work Item AC] 1387487 - AC9",
+      "steps": [
+        { "index": 1, "action": "Inspect the left navigation for admin-only items (Admin Reports, TGO Service Activity Report).", "expected_result": "" },
+        { "index": 2, "action": "Open the right-side Settings menu (if available to this role) and inspect for Admin Config, Tenants, and Sites.", "expected_result": "No admin-only navigation option (Admin Reports, TGO Service Activity Report, Admin Config, Tenants, admin-scoped Sites) is visible to the non-admin user; non-admin items remain visible and functional." }
+      ]
+    },
+    {
+      "test_case_id": "TC-014",
+      "title": "TGO - Direct URL To Tenants Denied For Non-Admin",
+      "scenario": "Direct URL To Tenants Denied For Non-Admin",
+      "test_condition": "Server-side enforcement: admin-only pages (Tenants) reject non-admin direct URL access.",
+      "type": "Negative", "test_level": "Integration", "technique": "Error Guessing", "category": "Security",
+      "priority": 1, "severity": "Critical", "risk_rating": "High", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-02. Capture Tenants and Sites page URLs from an admin session (TC-009, TC-011) beforehand.",
+      "test_data": "User: {{NONADMIN_USERNAME}}; URLs: Tenants route, Sites route",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 5, "execution_order": 14, "blocks": [],
+      "req_ids": ["REQ-009"],
+      "source": "[Work Item AC] 1387487 - AC9",
+      "steps": [
+        { "index": 1, "action": "As the non-admin user, navigate directly to the Tenants page URL.", "expected_result": "" },
+        { "index": 2, "action": "Repeat with the Sites page URL (when Sites is admin-scoped).", "expected_result": "Each admin-only URL is rejected (unauthorized/access-denied or redirect); no tenant or site data is rendered, and no data is returned in the network responses." }
+      ]
+    },
+    {
+      "test_case_id": "TC-015",
+      "title": "TGO - Navigation Works In Expanded State",
+      "scenario": "Navigation Works In Expanded State",
+      "test_condition": "All new navigation paths function with the left nav expanded.",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 2, "severity": "High", "risk_rating": "Medium", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Left navigation set to expanded state. Breadcrumb: TGO Home > Left Navigation (expanded).",
+      "test_data": "User: {{ADMIN_USERNAME}}",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 5, "execution_order": 15, "blocks": [],
+      "req_ids": ["REQ-010"],
+      "source": "[Work Item AC] 1387487 - AC10",
+      "steps": [
+        { "index": 1, "action": "With the left nav expanded, navigate Reports > Admin Reports > TGO Service Activity Report.", "expected_result": "" },
+        { "index": 2, "action": "Navigate to two additional pre-existing left-nav destinations.", "expected_result": "All items render with full labels, submenus expand inline, and every destination opens correctly in expanded state." }
+      ]
+    },
+    {
+      "test_case_id": "TC-016",
+      "title": "TGO - Navigation Works In Collapsed State",
+      "scenario": "Navigation Works In Collapsed State",
+      "test_condition": "All new navigation paths function with the left nav collapsed.",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 2, "severity": "High", "risk_rating": "Medium", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Left navigation set to collapsed state. Breadcrumb: TGO Home > Left Navigation (collapsed).",
+      "test_data": "User: {{ADMIN_USERNAME}}",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 5, "execution_order": 16, "blocks": [],
+      "req_ids": ["REQ-010"],
+      "source": "[Work Item AC] 1387487 - AC10",
+      "steps": [
+        { "index": 1, "action": "Collapse the left navigation.", "expected_result": "" },
+        { "index": 2, "action": "Using the collapsed icons/flyouts, navigate Reports > Admin Reports > TGO Service Activity Report.", "expected_result": "" },
+        { "index": 3, "action": "Navigate to one additional pre-existing destination from the collapsed nav.", "expected_result": "Collapsed nav shows icons, submenus are reachable (flyout or equivalent per Trilogy reference), and every destination opens correctly in collapsed state." }
+      ]
+    },
+    {
+      "test_case_id": "TC-017",
+      "title": "TGO - Expand Collapse Toggle Preserves Navigation State",
+      "scenario": "Expand Collapse Toggle Preserves Navigation State",
+      "test_condition": "Toggling expanded <-> collapsed repeatedly keeps navigation functional and active-item highlighting correct.",
+      "type": "Boundary", "test_level": "System", "technique": "State Transition", "category": "Functional",
+      "priority": 3, "severity": "Medium", "risk_rating": "Medium", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Start on the TGO Service Activity Report page (nav item active). Breadcrumb: TGO Home > Reports > Admin Reports > TGO Service Activity Report.",
+      "test_data": "User: {{ADMIN_USERNAME}}; Toggle count: 5 consecutive expand/collapse cycles",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "Restore nav to expanded state.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 5, "execution_order": 17, "blocks": [],
+      "req_ids": ["REQ-010"],
+      "source": "[Work Item AC] 1387487 - AC10",
+      "steps": [
+        { "index": 1, "action": "Toggle the left nav expanded -> collapsed -> expanded, 5 consecutive cycles.", "expected_result": "" },
+        { "index": 2, "action": "After the final toggle, inspect the active-item highlight and open a submenu.", "expected_result": "No rendering corruption, the active item (TGO Service Activity Report) remains highlighted in both states, and submenus still open correctly after repeated toggling." }
+      ]
+    },
+    {
+      "test_case_id": "TC-018",
+      "title": "TGO - Hover Navigation Matches Trilogy Platform Reference",
+      "scenario": "Hover Navigation Matches Trilogy Platform Reference",
+      "test_condition": "Hover flyout/highlight behavior matches the Trilogy platform reference.",
+      "type": "Positive", "test_level": "UAT", "technique": "Exploratory", "category": "Usability",
+      "priority": 2, "severity": "Medium", "risk_rating": "Low", "automation_feasibility": "Low",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Trilogy platform reference available (live Trilogy session or the 5 story attachments). Breadcrumb: TGO Home > Left Navigation.",
+      "test_data": "User: {{ADMIN_USERNAME}}; Reference: story attachments / live Trilogy platform",
+      "oracle": "Attachment", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "None.", "suite_tier": "One-time", "reusable": false,
+      "estimated_minutes": 10, "execution_order": 18, "blocks": [],
+      "req_ids": ["REQ-011"],
+      "source": "[Work Item AC] 1387487 - AC11 + attachments (Trilogy reference screenshots)",
+      "steps": [
+        { "index": 1, "action": "In both expanded and collapsed states, hover over Reports and each Settings section without clicking.", "expected_result": "" },
+        { "index": 2, "action": "Compare hover highlight, flyout appearance/timing, and submenu reveal against the Trilogy platform reference side-by-side.", "expected_result": "Hover behavior (highlight, flyout submenu reveal, positioning) is consistent with the Trilogy platform reference for each menu item." }
+      ]
+    },
+    {
+      "test_case_id": "TC-019",
+      "title": "TGO - Rapid Hover Across Menu Items Leaves No Stuck Flyouts",
+      "scenario": "Rapid Hover Across Menu Items Leaves No Stuck Flyouts",
+      "test_condition": "Hover-out closes flyouts; rapid hover across items does not leave orphaned/overlapping flyouts.",
+      "type": "Negative", "test_level": "System", "technique": "Error Guessing", "category": "Functional",
+      "priority": 3, "severity": "Medium", "risk_rating": "Medium", "automation_feasibility": "Medium",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Left nav collapsed (flyout mode). Breadcrumb: TGO Home > Left Navigation (collapsed).",
+      "test_data": "User: {{ADMIN_USERNAME}}",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 5, "execution_order": 19, "blocks": [],
+      "req_ids": ["REQ-011"],
+      "source": "[Work Item AC] 1387487 - AC11",
+      "steps": [
+        { "index": 1, "action": "Rapidly move the pointer up and down across all left-nav items several times.", "expected_result": "" },
+        { "index": 2, "action": "Hover Reports to open its flyout, then move the pointer completely away from the nav.", "expected_result": "Only one flyout is ever open at a time, and moving the pointer away closes the flyout; no orphaned, overlapping, or stuck flyouts remain on screen." }
+      ]
+    },
+    {
+      "test_case_id": "TC-020",
+      "title": "TGO - Existing Navigation Items Still Route Correctly",
+      "scenario": "Existing Navigation Items Still Route Correctly",
+      "test_condition": "Pre-existing navigation items and routes are unchanged after the menu restructure (regression).",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 1, "severity": "High", "risk_rating": "High", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Inventory of pre-change navigation items available (from current production or reference screenshots). Breadcrumb: TGO Home > Left Navigation.",
+      "test_data": "User: {{ADMIN_USERNAME}}; Data: pre-change nav-item inventory",
+      "oracle": "Legacy behavior", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 10, "execution_order": 20, "blocks": [],
+      "req_ids": ["REQ-012"],
+      "source": "[Work Item AC] 1387487 - AC12",
+      "steps": [
+        { "index": 1, "action": "Using the pre-change inventory, click every pre-existing left-nav item (excluding items intentionally moved by this story).", "expected_result": "" },
+        { "index": 2, "action": "Verify each destination page loads and matches its pre-change behavior.", "expected_result": "Every pre-existing navigation item is still present (unless intentionally moved), routes to the same destination, and each destination page loads without error." }
+      ]
+    },
+    {
+      "test_case_id": "TC-021",
+      "title": "TGO - Existing Role Access Unchanged After Menu Restructure",
+      "scenario": "Existing Role Access Unchanged After Menu Restructure",
+      "test_condition": "Authorized access for existing roles is preserved after the restructure (regression).",
+      "type": "Positive", "test_level": "System", "technique": "Decision Table", "category": "Functional",
+      "priority": 1, "severity": "Critical", "risk_rating": "High", "automation_feasibility": "Medium",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "Users available for each existing TGO role. Pre-change role-to-menu access matrix available. Breadcrumb: TGO Home > Left Navigation + Settings, per role.",
+      "test_data": "Users: one per existing TGO role ({{ADMIN_USERNAME}}, {{REPORT_USER_USERNAME}}, {{NONADMIN_USERNAME}}, plus any other QA roles); Data: pre-change access matrix",
+      "oracle": "Legacy behavior", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 15, "execution_order": 21, "blocks": [],
+      "req_ids": ["REQ-012", "REQ-009"],
+      "source": "[Work Item AC] 1387487 - AC12, AC9",
+      "steps": [
+        { "index": 1, "action": "For each existing role, log in and record which navigation items are visible and accessible.", "expected_result": "" },
+        { "index": 2, "action": "Compare the observed visibility/access per role against the pre-change access matrix (adjusted only for the intentional moves in this story).", "expected_result": "Each role sees and can access exactly what it could before the restructure — no role gained or lost access beyond the intentional menu moves." }
+      ]
+    },
+    {
+      "test_case_id": "TC-022",
+      "title": "TGO - Admin Reports Submenu Hidden When User Has No Admin Report Permission",
+      "scenario": "Admin Reports Submenu Hidden When User Has No Admin Report Permission",
+      "test_condition": "The Admin Reports submenu is not shown (or shown empty) to users with no admin-report permissions.",
+      "type": "Negative", "test_level": "System", "technique": "EP", "category": "Functional",
+      "priority": 2, "severity": "High", "risk_rating": "High", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-02 (user with no admin-report permissions). Breadcrumb: TGO Home > Left Navigation > Reports.",
+      "test_data": "User: {{NONADMIN_USERNAME}}",
+      "oracle": "TBD — confirm with PO", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 3, "execution_order": 22, "blocks": [],
+      "req_ids": ["REQ-002", "REQ-004"],
+      "source": "[Work Item AC] 1387487 - AC2 + AC4 (interaction)",
+      "steps": [
+        { "index": 1, "action": "As a user with no admin-report permissions, expand Reports in the left navigation.", "expected_result": "" },
+        { "index": 2, "action": "Inspect whether the 'Admin Reports' submenu is displayed.", "expected_result": "The user sees no orphaned/empty 'Admin Reports' submenu; expected visibility (fully hidden vs. shown empty) is TBD — confirm with PO, since the ACs do not state the submenu behavior when all its children are permission-hidden." }
+      ]
+    },
+    {
+      "test_case_id": "TC-023",
+      "title": "TGO - Keyboard-Only Navigation Through New Menu Structure",
+      "scenario": "Keyboard-Only Navigation Through New Menu Structure",
+      "test_condition": "The restructured menus are fully operable by keyboard (Tab/Arrow/Enter/Esc) with a visible focus indicator.",
+      "type": "Positive", "test_level": "System", "technique": "Error Guessing", "category": "Accessibility",
+      "priority": 3, "severity": "Medium", "risk_rating": "Medium", "automation_feasibility": "Medium",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Mouse not used during execution. Breadcrumb: TGO Home > Left Navigation + Settings.",
+      "test_data": "User: {{ADMIN_USERNAME}}; Standard: WCAG 2.1 keyboard operability",
+      "oracle": "Standard", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 8, "execution_order": 23, "blocks": [],
+      "req_ids": ["REQ-010"],
+      "source": "[Work Item AC] 1387487 - AC10 + WCAG standard",
+      "steps": [
+        { "index": 1, "action": "Using only the keyboard, Tab/Arrow to Reports, open it (Enter), and reach TGO Service Activity Report under Admin Reports.", "expected_result": "" },
+        { "index": 2, "action": "Using only the keyboard, open the right-side Settings menu and reach Admin Config > Tenants and System > Sites; press Esc to close menus.", "expected_result": "Every menu item in the new structure is reachable and activatable by keyboard, focus indicator is visible throughout, and Esc closes open menus/flyouts." }
+      ]
+    },
+    {
+      "test_case_id": "TC-024",
+      "title": "TGO - Role By Menu-Item Visibility Matrix",
+      "scenario": "Role By Menu-Item Visibility Matrix",
+      "test_condition": "Pairwise role x menu-item visibility verified for the new/moved items.",
+      "type": "Positive", "test_level": "Integration", "technique": "Pairwise", "category": "Security",
+      "priority": 2, "severity": "High", "risk_rating": "High", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "Users for roles: full admin, report-permission-only, non-admin. Items under test: Admin Reports, TGO Service Activity Report, Admin Config, Tenants, Sites. Breadcrumb: TGO Home > Left Navigation + Settings, per role.",
+      "test_data": "Roles: {{ADMIN_USERNAME}}, {{REPORT_USER_USERNAME}}, {{NONADMIN_USERNAME}}; Items: Admin Reports, TGO Service Activity Report, Admin Config, Tenants, Sites",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 15, "execution_order": 24, "blocks": [],
+      "req_ids": ["REQ-009"],
+      "source": "[Work Item AC] 1387487 - AC9 (role x item combinations)",
+      "steps": [
+        { "index": 1, "action": "For each role x menu-item pair in the matrix, log in as the role and record whether the item is visible and whether it opens.", "expected_result": "" },
+        { "index": 2, "action": "Compare the recorded matrix against the expected permission model (admin-only items visible only to admin; Service Activity Report visible to report-permitted users).", "expected_result": "Every role x item pair matches the expected permission model with zero unexpected grants (item visible/openable to an unauthorized role) and zero unexpected denials (item hidden from an authorized role)." }
+      ]
+    },
+    {
+      "test_case_id": "TC-025",
+      "title": "TGO - Navigation At Minimum Supported Viewport Width",
+      "scenario": "Navigation At Minimum Supported Viewport Width",
+      "test_condition": "Expanded/collapsed navigation renders and operates at the minimum supported browser viewport width.",
+      "type": "Boundary", "test_level": "System", "technique": "BVA", "category": "Compatibility",
+      "priority": 3, "severity": "Medium", "risk_rating": "Low", "automation_feasibility": "Medium",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Minimum supported viewport width known (TBD — confirm with PO; not stated in story). Breadcrumb: TGO Home > Left Navigation.",
+      "test_data": "User: {{ADMIN_USERNAME}}; Viewport widths: minimum supported width, minimum -1px, minimum +1px (values TBD)",
+      "oracle": "TBD — confirm with PO", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "Restore browser window size.", "suite_tier": "One-time", "reusable": false,
+      "estimated_minutes": 8, "execution_order": 25, "blocks": [],
+      "req_ids": ["REQ-010"],
+      "source": "[Work Item AC] 1387487 - AC10 (boundary analysis)",
+      "steps": [
+        { "index": 1, "action": "Resize the browser to the minimum supported viewport width and exercise the expanded nav (Reports > Admin Reports > TGO Service Activity Report).", "expected_result": "" },
+        { "index": 2, "action": "Repeat in collapsed state, and at minimum -1px / +1px widths.", "expected_result": "Navigation remains usable at the boundary widths — no clipped/unreachable items or overlapping flyouts; exact minimum width TBD — confirm with PO." }
+      ]
+    },
+    {
+      "test_case_id": "TC-026",
+      "title": "TGO - Navigation Behavior Across Supported Browsers",
+      "scenario": "Navigation Behavior Across Supported Browsers",
+      "test_condition": "Expanded/collapsed/hover navigation behaves identically across the supported browser matrix.",
+      "type": "Positive", "test_level": "System", "technique": "EP", "category": "Compatibility",
+      "priority": 3, "severity": "Medium", "risk_rating": "Low", "automation_feasibility": "Medium",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Supported browser list available (TBD — confirm with PO; not stated in story). Breadcrumb: TGO Home > Left Navigation, per browser.",
+      "test_data": "User: {{ADMIN_USERNAME}}; Browsers: supported matrix (TBD)",
+      "oracle": "TBD — confirm with PO", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "None.", "suite_tier": "One-time", "reusable": false,
+      "estimated_minutes": 15, "execution_order": 26, "blocks": [],
+      "req_ids": ["REQ-010", "REQ-011"],
+      "source": "[Work Item AC] 1387487 - AC10, AC11 (browser matrix)",
+      "steps": [
+        { "index": 1, "action": "On each supported browser, execute the core path: expand/collapse the nav, hover Reports, open Reports > Admin Reports > TGO Service Activity Report, and open Settings > Admin Config > Tenants.", "expected_result": "" },
+        { "index": 2, "action": "Compare rendering and behavior across browsers.", "expected_result": "Navigation structure, expand/collapse, and hover flyouts behave consistently on every supported browser; browser list TBD — confirm with PO." }
+      ]
+    },
+    {
+      "test_case_id": "TC-027",
+      "title": "TGO - Navigation Click After Session Expiry Redirects To Login",
+      "scenario": "Navigation Click After Session Expiry Redirects To Login",
+      "test_condition": "Clicking a (admin) navigation item after session expiry redirects to login without exposing data.",
+      "type": "Negative", "test_level": "System", "technique": "Error Guessing", "category": "Security",
+      "priority": 2, "severity": "High", "risk_rating": "High", "automation_feasibility": "Medium",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01, then let the session expire (or invalidate it server-side/clear the auth token). Breadcrumb: TGO Home > Left Navigation.",
+      "test_data": "User: {{ADMIN_USERNAME}}; Session state: expired/invalidated",
+      "oracle": "Legacy behavior", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "Log back in.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 8, "execution_order": 27, "blocks": [],
+      "req_ids": ["REQ-012"],
+      "source": "[Work Item AC] 1387487 - AC12 (auth regression) + error guessing",
+      "steps": [
+        { "index": 1, "action": "With the TGO page still open but the session expired, click Reports > Admin Reports > TGO Service Activity Report.", "expected_result": "" },
+        { "index": 2, "action": "Repeat via Settings > Admin Config > Tenants.", "expected_result": "The user is redirected to the login page (consistent with pre-change session-expiry behavior); no report/tenant data is rendered or returned after expiry." }
+      ]
+    },
+    {
+      "test_case_id": "TC-028",
+      "title": "TGO - Browser Refresh And Deep Link Keep Navigation Consistent",
+      "scenario": "Browser Refresh And Deep Link Keep Navigation Consistent",
+      "test_condition": "Refreshing or deep-linking to a moved/new destination renders the new menu structure with correct active-item state.",
+      "type": "Positive", "test_level": "System", "technique": "Error Guessing", "category": "Functional",
+      "priority": 3, "severity": "Medium", "risk_rating": "Low", "automation_feasibility": "High",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Breadcrumb: TGO Home > Reports > Admin Reports > TGO Service Activity Report.",
+      "test_data": "User: {{ADMIN_USERNAME}}; URLs: Service Activity Report route, Tenants route",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "Low",
+      "cleanup": "None.", "suite_tier": "Regression", "reusable": true,
+      "estimated_minutes": 5, "execution_order": 28, "blocks": [],
+      "req_ids": ["REQ-012"],
+      "source": "[Work Item AC] 1387487 - AC12 + error guessing",
+      "steps": [
+        { "index": 1, "action": "Open TGO Service Activity Report via the nav, then press browser refresh (F5).", "expected_result": "" },
+        { "index": 2, "action": "In a new tab (same session), deep-link directly to the Tenants URL.", "expected_result": "After refresh and via deep link, the page loads, the new menu structure renders, and the corresponding nav item is shown in its new location with correct active highlighting." }
+      ]
+    },
+    {
+      "test_case_id": "TC-029",
+      "title": "TGO - Flyout Rendering At Bottom Edge Of Viewport",
+      "scenario": "Flyout Rendering At Bottom Edge Of Viewport",
+      "test_condition": "Hover flyout for the last/bottom nav item renders fully within the viewport (no clipping off-screen).",
+      "type": "Boundary", "test_level": "System", "technique": "BVA", "category": "Functional",
+      "priority": 3, "severity": "Low", "risk_rating": "Low", "automation_feasibility": "Medium",
+      "work_item_type": "Test Case", "state": "Design",
+      "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+      "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+      "preconditions": "SETUP-01. Left nav collapsed; browser window at a height where the last nav item sits near the bottom edge. Breadcrumb: TGO Home > Left Navigation (collapsed).",
+      "test_data": "User: {{ADMIN_USERNAME}}; Window height: reduced so the last nav item is at the bottom viewport edge",
+      "oracle": "AC", "verification_method": "UI", "dependency_mode": "Integrated", "abstraction_level": "High",
+      "cleanup": "Restore browser window size.", "suite_tier": "One-time", "reusable": false,
+      "estimated_minutes": 5, "execution_order": 29, "blocks": [],
+      "req_ids": ["REQ-011"],
+      "source": "[Work Item AC] 1387487 - AC11 (boundary analysis)",
+      "steps": [
+        { "index": 1, "action": "Hover over the bottom-most left-nav item (near the viewport's bottom edge) to trigger its flyout.", "expected_result": "" },
+        { "index": 2, "action": "Inspect the flyout position and content.", "expected_result": "The flyout is fully visible within the viewport (repositioned upward if needed); no submenu entries are clipped or unreachable." }
+      ]
+    }
+  ],
+  "traceability_matrix": [
+    { "req_id": "REQ-001", "test_conditions": ["TCOND-001"], "test_case_ids": ["TC-001"], "levels": ["System"], "techniques": ["EP"], "covered": true },
+    { "req_id": "REQ-002", "test_conditions": ["TCOND-002"], "test_case_ids": ["TC-002", "TC-022"], "levels": ["System"], "techniques": ["EP"], "covered": true },
+    { "req_id": "REQ-003", "test_conditions": ["TCOND-003"], "test_case_ids": ["TC-003"], "levels": ["System"], "techniques": ["EP"], "covered": true },
+    { "req_id": "REQ-004", "test_conditions": ["TCOND-004"], "test_case_ids": ["TC-004", "TC-005", "TC-006", "TC-022"], "levels": ["System"], "techniques": ["Decision Table", "Error Guessing", "EP"], "covered": true },
+    { "req_id": "REQ-005", "test_conditions": ["TCOND-005"], "test_case_ids": ["TC-007", "TC-010"], "levels": ["System"], "techniques": ["EP", "Error Guessing"], "covered": true },
+    { "req_id": "REQ-006", "test_conditions": ["TCOND-006"], "test_case_ids": ["TC-008"], "levels": ["System"], "techniques": ["EP"], "covered": true },
+    { "req_id": "REQ-007", "test_conditions": ["TCOND-007"], "test_case_ids": ["TC-009"], "levels": ["System"], "techniques": ["EP"], "covered": true },
+    { "req_id": "REQ-008", "test_conditions": ["TCOND-008"], "test_case_ids": ["TC-011"], "levels": ["System"], "techniques": ["EP"], "covered": true },
+    { "req_id": "REQ-009", "test_conditions": ["TCOND-009"], "test_case_ids": ["TC-006", "TC-012", "TC-013", "TC-014", "TC-021", "TC-024"], "levels": ["System", "Integration"], "techniques": ["Decision Table", "Error Guessing", "Pairwise"], "covered": true },
+    { "req_id": "REQ-010", "test_conditions": ["TCOND-010"], "test_case_ids": ["TC-015", "TC-016", "TC-017", "TC-023", "TC-025", "TC-026"], "levels": ["System"], "techniques": ["EP", "State Transition", "Error Guessing", "BVA"], "covered": true },
+    { "req_id": "REQ-011", "test_conditions": ["TCOND-011"], "test_case_ids": ["TC-018", "TC-019", "TC-026", "TC-029"], "levels": ["System", "UAT"], "techniques": ["Exploratory", "Error Guessing", "EP", "BVA"], "covered": true },
+    { "req_id": "REQ-012", "test_conditions": ["TCOND-012"], "test_case_ids": ["TC-020", "TC-021", "TC-027", "TC-028"], "levels": ["System"], "techniques": ["EP", "Decision Table", "Error Guessing"], "covered": true }
+  ],
+  "coverage": {
+    "by_type": { "Positive": 18, "Negative": 8, "Boundary": 3 },
+    "by_level": { "Component": 0, "Integration": 2, "System": 26, "UAT": 1 },
+    "by_category": { "Functional": 21, "Security": 4, "Performance": 0, "Accessibility": 1, "Compatibility": 2, "Recovery": 0, "API": 0, "Database": 0, "Usability": 1 },
+    "by_technique": { "EP": 12, "BVA": 2, "Decision Table": 5, "State Transition": 1, "Pairwise": 1, "Error Guessing": 7, "Exploratory": 1 },
+    "by_requirement": [
+      { "req_id": "REQ-001", "case_count": 1 },
+      { "req_id": "REQ-002", "case_count": 2 },
+      { "req_id": "REQ-003", "case_count": 1 },
+      { "req_id": "REQ-004", "case_count": 4 },
+      { "req_id": "REQ-005", "case_count": 2 },
+      { "req_id": "REQ-006", "case_count": 1 },
+      { "req_id": "REQ-007", "case_count": 1 },
+      { "req_id": "REQ-008", "case_count": 1 },
+      { "req_id": "REQ-009", "case_count": 6 },
+      { "req_id": "REQ-010", "case_count": 6 },
+      { "req_id": "REQ-011", "case_count": 4 },
+      { "req_id": "REQ-012", "case_count": 4 }
+    ],
+    "examples_mapping_confirmed": true
+  },
+  "risk_coverage": {
+    "by_rating": { "High": 9, "Medium": 14, "Low": 6 },
+    "high_risk_requirements": [
+      { "req_id": "REQ-004", "case_count": 4, "covered": true },
+      { "req_id": "REQ-009", "case_count": 6, "covered": true },
+      { "req_id": "REQ-012", "case_count": 4, "covered": true }
+    ]
+  },
+  "coverage_considerations": [
+    { "item": "Role-based access", "decision": "applied", "reason": "AC4 and AC9 are explicitly permission-based.", "test_case_ids": ["TC-004", "TC-005", "TC-006", "TC-012", "TC-013", "TC-014", "TC-024"] },
+    { "item": "Exact UI text", "decision": "applied", "reason": "Menu labels are stated in ACs (Reports, Admin Reports, TGO Service Activity Report, Admin Config, Tenants, System, Sites); asserted in nav cases. Pixel-level layout requires the unreadable screenshots.", "test_case_ids": ["TC-002", "TC-003", "TC-008", "TC-009", "TC-011"] },
+    { "item": "Backend/database persistence", "decision": "not_applicable", "reason": "Navigation-structure story; no data create/update/delete in scope.", "test_case_ids": [] },
+    { "item": "Unit/interval conversion", "decision": "not_applicable", "reason": "No unit-bearing values in scope.", "test_case_ids": [] },
+    { "item": "Server-side validation", "decision": "applied", "reason": "Direct-URL access bypassing hidden nav items must be rejected server-side.", "test_case_ids": ["TC-006", "TC-014"] },
+    { "item": "Cancel / discard behavior", "decision": "not_applicable", "reason": "No editable forms introduced by this story.", "test_case_ids": [] },
+    { "item": "Audit logging", "decision": "not_applicable", "reason": "Navigation visibility changes; no auditable create/update/delete introduced. If unauthorized-access attempts should be logged, that is unspecified (see ambiguous requirements).", "test_case_ids": [] },
+    { "item": "State transitions", "decision": "applied", "reason": "Expanded <-> collapsed nav states.", "test_case_ids": ["TC-017"] },
+    { "item": "Concurrency / race conditions", "decision": "not_applicable", "reason": "No shared-record editing in scope; menu is per-session UI state.", "test_case_ids": [] },
+    { "item": "Idempotency & retry", "decision": "applied", "reason": "Refresh/deep-link of moved routes must be stable.", "test_case_ids": ["TC-028"] },
+    { "item": "Default values & pre-population", "decision": "not_applicable", "reason": "No form fields in scope.", "test_case_ids": [] },
+    { "item": "Search / filter / sort / pagination edges", "decision": "not_applicable", "reason": "No list/search behavior changed by this story (report content itself is out of scope).", "test_case_ids": [] },
+    { "item": "Downstream / regression impact", "decision": "applied", "reason": "AC12 explicitly requires no regression to existing navigation and access.", "test_case_ids": ["TC-020", "TC-021", "TC-027", "TC-028"] },
+    { "item": "Data migration / existing records", "decision": "not_applicable", "reason": "No persisted data model changes.", "test_case_ids": [] },
+    { "item": "Localization / formatting", "decision": "not_applicable", "reason": "No locale requirements stated for the menu; flagged as a gap if TGO is localized.", "test_case_ids": [] },
+    { "item": "Security beyond authorization", "decision": "applied", "reason": "IDOR-style direct-URL access and session expiry mid-navigation.", "test_case_ids": ["TC-006", "TC-014", "TC-027"] },
+    { "item": "Non-functional design", "decision": "applied", "reason": "Accessibility (keyboard), compatibility (browsers, viewport), usability (hover parity vs Trilogy).", "test_case_ids": ["TC-023", "TC-025", "TC-026", "TC-018"] }
+  ],
+  "missing_requirements": [
+    "The complete list of 'administrative and configuration options' to be moved into Settings is defined only by the attached screenshots, which could not be read in this run — human must verify TC-007/TC-010 item lists against the attachments.",
+    "No AC states the expected behavior of the Admin Reports submenu when a user has no admin-report permissions (hidden vs. shown empty).",
+    "Supported browser matrix and minimum viewport width are not specified.",
+    "No AC covers mobile/tablet responsive behavior of the new menu (if in scope for TGO)."
+  ],
+  "ambiguous_requirements": [
+    { "req_id": "REQ-004", "issue": "'Applicable report permissions' — the specific permission name(s) controlling TGO Service Activity Report are not named in the story (implemented in a prior story).", "assumption_made": "QA role setup mirrors the completed report-permission story; permission name to be confirmed from that story." },
+    { "req_id": "REQ-005", "issue": "The exact set of administrative/configuration options moved to Settings is only defined by screenshots (unreadable in this run).", "assumption_made": "At minimum Admin Config > Tenants and System > Sites, per the explicit ACs." },
+    { "req_id": "REQ-009", "issue": "'Authorized administrators' — the roles that count as administrators are not enumerated.", "assumption_made": "Full-admin role in QA is authoritative; role list to be confirmed with PO." },
+    { "req_id": "REQ-011", "issue": "'Consistent with the Trilogy platform' hover behavior has no written specification — only the reference screenshots/live platform.", "assumption_made": "Side-by-side comparison with the live Trilogy platform or attachments is the oracle (TC-018)." }
+  ],
+  "open_questions": [
+    { "req_id": "REQ-002", "question": "When a user has no admin-report permission, is the Admin Reports submenu fully hidden or shown empty?", "draft_case_ids": ["TC-022"] },
+    { "req_id": "REQ-005", "question": "Which exact menu items (beyond Tenants and Sites) move to the Settings menu, and from which old locations are they removed?", "draft_case_ids": ["TC-010"] },
+    { "req_id": "REQ-010", "question": "What are the supported browsers and the minimum supported viewport width for the navigation?", "draft_case_ids": ["TC-025", "TC-026"] },
+    { "req_id": "REQ-008", "question": "Is Sites admin-only, or visible to non-admin roles under Settings > System?", "draft_case_ids": ["TC-014"] }
+  ],
+  "untestable_requirements": [],
+  "exploratory_test_ideas": [
+    "Explore the navigation with a user whose permissions are changed mid-session (permission revoked while menu already rendered) to discover stale-menu authorization gaps.",
+    "Explore hover/flyout behavior with browser zoom at 50%/200% to discover positioning and clipping defects.",
+    "Explore rapid expand/collapse toggling while a page is still loading to discover race conditions in nav state rendering.",
+    "Explore the Settings menu with a role that has exactly one admin permission (e.g. report-only) to discover partially-populated section rendering issues.",
+    "Explore keyboard + screen reader (NVDA) announcement of the new submenu hierarchy to discover accessibility regressions.",
+    "Explore direct navigation to legacy (pre-move) URLs of Tenants/Sites to discover broken bookmarks or missing redirects."
+  ],
+  "warnings": [
+    "5 story attachments (Trilogy reference screenshots) could not be visually read in this run (model vision disabled). They were saved to C:\\Users\\aravind.shanmugam\\Downloads\\tgo-1387487-att1..5.png for human review. Cases referencing the expected structure/hover parity (TC-002, TC-007, TC-010, TC-018) must be human-verified against these images.",
+    "No SpecFlow/feature files were provided for this story; examples_mapping_confirmed is vacuously true (zero Examples rows).",
+    "Existing test case 1486056 is already linked (TestedBy) to this story — review for overlap before publishing new cases."
+  ],
+  "unresolved_artifacts": [
+    { "ref": "attachment b8dd553e-013e-47d1-bf88-8b643bf49dd7 (image.png)", "reason": "Model vision disabled — saved to Downloads\\tgo-1387487-att1.png for human review." },
+    { "ref": "attachment 3ca9eb8c-7b69-45bc-a5fa-33471afbad85 (image.png)", "reason": "Model vision disabled — saved to Downloads\\tgo-1387487-att2.png for human review." },
+    { "ref": "attachment ef5dbfb6-daba-4c50-9112-292629750a65 (image.png)", "reason": "Model vision disabled — saved to Downloads\\tgo-1387487-att3.png ('How the menu should look like')." },
+    { "ref": "attachment e64658a0-9f26-43b8-86e0-976ccbf8b312 (image.png)", "reason": "Model vision disabled — saved to Downloads\\tgo-1387487-att4.png ('Modification to the menu on Trilogy Go')." },
+    { "ref": "attachment a5750258-b23f-46d6-9938-50c793d70ef9 (image.png)", "reason": "Model vision disabled — saved to Downloads\\tgo-1387487-att5.png." }
+  ]
+}

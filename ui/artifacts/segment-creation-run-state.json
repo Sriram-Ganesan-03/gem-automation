@@ -1,0 +1,37 @@
+{
+  "workflow": "ui-testcase-orchestrator",
+  "source": "raw-file",
+  "raw_input_file": "ui/input.txt",
+  "run_mode": "execute",
+  "status": "passed",
+  "scope": "Sign in, navigate to GEM Segment Management, create a Segment with root and nested audience conditions, calculate player count, save, and verify it in the listing.",
+  "results": {
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "segment_name": "this is for testing",
+  "description": "this is for testing",
+  "audience_criteria": [
+    "Root AND: Demographic Attributes Age greater than 21",
+    "Nested OR group: Demographic Attributes Age greater than 21"
+  ],
+  "segment_creation_attempted": true,
+  "application_data_mutated": true,
+  "generated_files": [
+    "ui/artifacts/tests/config/segment-test-config.ts",
+    "ui/artifacts/tests/locators/segment-login.locators.ts",
+    "ui/artifacts/tests/locators/segment-management.locators.ts",
+    "ui/artifacts/tests/pages/segment-login.page.ts",
+    "ui/artifacts/tests/pages/segment-management.page.ts",
+    "ui/artifacts/tests/specs/segment-creation-smoke.spec.ts",
+    "ui/artifacts/segment-creation.playwright.config.ts"
+  ],
+  "report_locations": {
+    "html": "ui/artifacts/segment-creation-playwright-report/index.html",
+    "json": "ui/artifacts/segment-creation-test-results/results.json",
+    "junit": "ui/artifacts/segment-creation-test-results/junit.xml"
+  },
+  "coverage_limitations": []
+}
