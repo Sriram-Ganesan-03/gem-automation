@@ -1,0 +1,22 @@
+export const SegmentManagementLocators = {
+  segmentMenuItem: 'Segment',
+  listingHeading: 'Segment Management',
+  addButton: 'button.p-button-success',
+  searchInput: 'Search by segment name...',
+  createHeading: 'Create New Segment',
+  nameInput: 'e.g. High Value VIPs, Inactive 30 Days',
+  tagsInput: 'Add tags (press Enter)...',
+  descriptionInput:
+    'Provide details on the target player group, tier characteristics, and promotion use case...',
+  rootCondition: 'Root Condition (All conditions must match)',
+  nestedConditionGroup: 'Nested Matching Group (Nested conditions)',
+  addRuleButton: 'Add Rule',
+  addGroupButton: 'Add Group',
+  getPlayerCountButton: 'Get Player Count',
+  saveButton: 'Save Segment',
+  cancelButton: 'Cancel',
+  audienceTable: 'DemographicAttributes',
+  audienceField: 'age',
+  audienceOperator: 'greaterThan',
+  audienceValue: '21',
+} as const;
