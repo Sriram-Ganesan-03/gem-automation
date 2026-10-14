@@ -1,0 +1,77 @@
+{
+  "authoring_phase": "enhancement",
+  "enhancement": {
+    "baseline_cases_path": ".github/testcases/artifacts/testcases-1387487.json",
+    "baseline_workbook_path": "C:\\Users\\aravind.shanmugam\\Downloads\\TGO_1387487_TestCases_What i needed.xlsx",
+    "environment_label": "QA01 - trilogy-go-qa01.purplecheckpoint.com/tgo"
+  },
+
+  "ado_org_url": "https://dev.azure.com/everi",
+  "ado_project": "Loyalty Kiosk",
+  "story_source": "ado",
+  "raw_input_file": null,
+  "user_story_id": 1387487,
+  "user_story_title_keywords": "TGO - Align Navigation Menu Structure with Trilogy Platform",
+
+  "source_repo_url": null,
+  "source_wiki_url": null,
+  "source_spec_root_path": null,
+  "source_feature_files": [],
+  "source_local_doc_paths": [],
+  "source_local_doc_types": [],
+
+  "title_prefix": "TGO - <scenario>",
+  "work_item_type": "Test Case",
+  "default_state": "Design",
+  "area_path": "Loyalty Kiosk\\Trilogy Cloud Solutions\\TGO",
+  "iteration_path": "Loyalty Kiosk",
+  "assigned_to": "Sundaram, Sornadevi <sornadevi.sundaram@igt.com>",
+  "default_priority": 2,
+  "max_steps_per_case": 15,
+
+  "header_validation": {
+    "enabled": true,
+    "expected_header_name": "Content-Type",
+    "expected_header_value": "application/json"
+  },
+
+  "ui_exploration": {
+    "enabled": true,
+    "app_url": "https://trilogy-go-qa01.purplecheckpoint.com/tgo",
+    "app_auth_strategy": "none",
+    "target_paths": [],
+    "max_pages": 12
+  },
+
+  "mobile_exploration": {
+    "enabled": false,
+    "platform": "android",
+    "execution_target": "local",
+    "appium_server_url": "http://127.0.0.1:4723",
+    "app_auth_strategy": "env-var",
+    "app_package": "com.everi.tgo",
+    "app_activity": ".MainActivity",
+    "bundle_id": null,
+    "app_path": null,
+    "avd": "Pixel_8_API_34",
+    "browserstack": null,
+    "target_screens": ["Enroll", "Rewards"],
+    "max_screens": 12
+  },
+
+  "output_mode": "excel",
+  "excel": {
+    "worksheet": "Test Cases",
+    "primary_output_dir": "C:\\Users\\aravind.shanmugam\\Downloads",
+    "fallback_output_dir": "C:\\Users\\aravind.shanmugam\\Downloads",
+    "output_file_basename": "TGO_1387487_TestCases_What i needed"
+  },
+  "ado_publish": {
+    "target_test_plan_id": null,
+    "target_test_suite_id": null
+  },
+
+  "run_mode": "dry-run",
+  "execution_confirmation": null,
+  "ado_access_mode": "read-only-plus-testcase-write"
+}

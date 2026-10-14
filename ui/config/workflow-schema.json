@@ -1,0 +1,381 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Playwright UI Test Generation Workflow",
+  "type": "object",
+  "required": [
+    "app_base_url",
+    "app_auth_strategy",
+    "test_output_path",
+    "input_source"
+  ],
+  "if": {
+    "properties": { "input_source": { "const": "ado" } },
+    "required": ["input_source"]
+  },
+  "then": {
+    "required": ["user_story_ado_link", "test_cases_ado_link"]
+  },
+  "else": {
+    "required": ["raw_input_file"]
+  },
+  "dependentRequired": {
+    "run_mode": []
+  },
+  "properties": {
+    "app_base_url": {
+      "type": "string",
+      "format": "uri",
+      "minLength": 1
+    },
+    "app_auth_strategy": {
+      "type": "string",
+      "enum": ["none", "env-var", "cookie-file"],
+      "default": "none"
+    },
+    "test_output_path": {
+      "type": "string",
+      "minLength": 1,
+      "default": "tests/e2e"
+    },
+    "report_output_path": {
+      "type": "string",
+      "minLength": 1,
+      "default": "playwright-report"
+    },
+    "screenshot_mode": {
+      "type": "string",
+      "enum": ["all", "on-failure", "none"],
+      "default": "on-failure",
+      "description": "all — screenshot taken after every test.step(). on-failure — screenshot taken only when a step or test fails (Playwright config default). none — no screenshots."
+    },
+    "log_level": {
+      "type": "string",
+      "enum": ["step", "action", "none"],
+      "default": "step",
+      "description": "step — console.log at start/end of each test.step(). action — console.log inside every page class method as well. none — no generated logging."
+    },
+    "playwright_project_mode": {
+      "type": "string",
+      "enum": ["new", "existing"],
+      "default": "new",
+      "description": "new — generate playwright.config.ts as part of the PR. existing — target repo already has a Playwright project; skip config generation and read testDir from the existing config."
+    },
+    "playwright_config_path": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Relative path to playwright.config.ts inside target_repo. Required when playwright_project_mode is existing. Agents read this file to derive testDir and reporter output paths."
+    },
+    "input_source": {
+      "type": "string",
+      "enum": ["ado", "raw-file"],
+      "default": "ado",
+      "description": "ado — fetch story title and test cases from Azure DevOps (default). raw-file — read test scenarios from a local file (markdown, plain text, or JSON); no ADO fetch in Phase 1."
+    },
+    "raw_input_file": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Path to the raw input file containing test scenarios. Required when input_source is raw-file. Supports .md (markdown), .txt (plain text), .json (pre-structured), and a Test Cases workflow output — an .xlsx workbook (excel-exporter) or testcase-generator .json — which is auto-converted to raw-input JSON via the testcase-excel-to-rawinput skill. Path is relative to the workspace root."
+    },
+    "user_story_ado_link": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "Full ADO URL for the user story work item. Use this or user_story_id — at least one is required when input_source is ado."
+    },
+    "user_story_id": {
+      "type": ["integer", "null"],
+      "default": null,
+      "description": "Numeric ADO work item ID for the user story (e.g. 1326051). Use instead of user_story_ado_link when you know the ID directly."
+    },
+    "test_cases_ado_link": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "Full ADO test plan/suite URL. Use this or the test_plan_id + test_suite_id pair — at least one form is required when input_source is ado."
+    },
+    "test_plan_id": {
+      "type": ["integer", "null"],
+      "default": null,
+      "description": "Numeric ADO test plan ID (e.g. 432931). Use with test_suite_id as an alternative to test_cases_ado_link."
+    },
+    "test_suite_id": {
+      "type": ["integer", "null"],
+      "default": null,
+      "description": "Numeric ADO test suite ID (e.g. 1329228). Use with test_plan_id as an alternative to test_cases_ado_link."
+    },
+    "reviewer_ado_user_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_repo": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_branch": {
+      "type": "string",
+      "minLength": 1,
+      "default": "main"
+    },
+    "target_local_path": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "OPTIONAL OVERRIDE. The .github folder always lives inside the target project, so the project root is auto-derived as the repository/workspace root that contains .github; generated files are written DIRECTLY there by default (locators/pages/specs and the api layer under the detected testDir / <test_output_path>, and in 'new' mode playwright.config.ts at the project root). The local project is the primary output target; ui/artifacts/ retains a mirror copy only as a working log. This runs in both dry-run and execute modes and is independent of ADO PR creation. Set this only to point at a DIFFERENT directory than the auto-derived project root; leave null to use the auto-derived root."
+    },
+    "spec_name_override": {
+      "type": ["string", "null"],
+      "default": null
+    },
+    "target_pages": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "run_mode": {
+      "type": "string",
+      "enum": ["dry-run", "execute"],
+      "default": "dry-run"
+    },
+    "execution_confirmation": {
+      "type": ["string", "null"],
+      "enum": ["APPROVED_EXECUTE", null],
+      "default": null
+    },
+    "allow_ado_mutation": {
+      "type": "boolean",
+      "const": false,
+      "default": false
+    },
+    "allow_probe_resources": {
+      "type": "boolean",
+      "const": false,
+      "default": false
+    },
+    "ado_access_mode": {
+      "type": "string",
+      "const": "read-only",
+      "default": "read-only"
+    },
+    "ado_tool_calls_mode": {
+      "type": "string",
+      "const": "read-wrapper-only",
+      "default": "read-wrapper-only"
+    },
+    "ado_write_tools_disabled": {
+      "type": "boolean",
+      "const": true,
+      "default": true
+    },
+    "app_username": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Application login username. Used when app_auth_strategy is env-var. Preflight writes this to .env. Add workflow-input.current.json to .gitignore."
+    },
+    "app_password": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Application login password. Used when app_auth_strategy is env-var. Preflight writes this to .env. Never commit — add workflow-input.current.json to .gitignore."
+    },
+    "ado_pat": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Azure DevOps Personal Access Token. SECURITY: do NOT store the token value here — keep this null and supply the token via the ADO_PAT environment variable, which preflight reads as a fallback. A non-null value is only for ephemeral local runs and must never be committed (workflow-input.current.json is gitignored). Required (via env var or this field) when input_source is ado or run_mode is execute."
+    },
+    "ado_org": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Azure DevOps organization name (e.g. everi). Required when input_source is ado or run_mode is execute."
+    },
+    "ado_project": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Azure DevOps project name (e.g. Loyalty Kiosk). Required when input_source is ado or run_mode is execute."
+    },
+    "api_layer": {
+      "type": ["object", "null"],
+      "default": null,
+      "description": "Optional hybrid API + UI generation stage. When omitted, null, or enabled=false, the orchestrator skips build-api-layer.agent.md entirely and produces UI-only artifacts.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Master switch. When false, the entire api_layer object is ignored."
+        },
+        "api_source": {
+          "type": ["string", "null"],
+          "enum": ["openapi", "postman", "manual", "curl", null],
+          "default": null,
+          "description": "openapi — parse an OpenAPI 3.x / Swagger 2.0 document. postman — parse a Postman v2.1 collection. manual — use the manual_endpoints array. curl — parse one or more raw curl commands (or a plain method+URL+headers API definition) supplied inline via curl_commands or read from curl_source_file (defaults to the run input.txt). Required when enabled is true."
+        },
+        "api_base_url": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "default": null,
+          "description": "Root URL for the API under test. Written to .env as API_BASE_URL by preflight. Required when enabled is true."
+        },
+        "api_auth_strategy": {
+          "type": "string",
+          "enum": ["auto", "none", "bearer-env", "basic-env", "api-key-header", "custom-signature", "cookie-from-ui-login", "oauth-client-credentials"],
+          "default": "auto",
+          "description": "auto — derive the scheme from the source (Postman auth blocks/pre-request scripts or OpenAPI securitySchemes). none — no auth. bearer-env — API_BEARER_TOKEN. basic-env — API_USERNAME/API_PASSWORD. api-key-header — API_KEY sent via the header/param name found in the source. custom-signature — reproduce an app-specific signer (HMAC/SigV4/packet, etc.) from the source's pre-request script; inputs read via env vars. cookie-from-ui-login — drive Playwright UI login once and reuse storageState. oauth-client-credentials — API_OAUTH_CLIENT_ID/SECRET/TOKEN_URL."
+        },
+        "openapi_spec_path": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Local path or URL to an OpenAPI/Swagger document. Required when api_source is openapi."
+        },
+        "postman_collection_path": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Local path to a Postman v2.1 collection JSON. Required when api_source is postman."
+        },
+        "postman_environment_path": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Optional local path to a Postman environment JSON export. Only used when api_source is postman. Its variables resolve {{var}} placeholders in the collection and seed generated config; secret-looking values are mapped to env-var names only and never written into generated files."
+        },
+        "curl_source_file": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Optional path to a text file (e.g. the run input.txt) containing one or more curl commands or a plain method+URL+headers API definition. Only used when api_source is curl. When api_source is curl and both curl_commands and curl_source_file are empty/null, the parser falls back to the run-level raw_input_file (input.txt)."
+        },
+        "curl_commands": {
+          "type": "array",
+          "default": [],
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Optional inline list of raw curl command strings (each may span multiple lines with backslash continuations). Only used when api_source is curl. Takes precedence over curl_source_file when non-empty. Secret-looking header values (Authorization, api-key, token, etc.) are mapped to env-var names only and never written into generated files."
+        },
+        "manual_endpoints": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "required": ["name", "method", "path"],
+            "properties": {
+              "name":   { "type": "string", "minLength": 1 },
+              "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] },
+              "path":   { "type": "string", "minLength": 1 },
+              "domain": { "type": "string" },
+              "requestSchema":  {},
+              "responseSchema": {}
+            },
+            "additionalProperties": true
+          },
+          "description": "Explicit endpoint definitions. Required (non-empty) when api_source is manual."
+        },
+        "domains": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Optional allowlist of domain names to generate clients for. Empty array means generate all discovered domains."
+        },
+        "schema_validation": {
+          "type": "string",
+          "enum": ["strict", "warn", "off"],
+          "default": "warn",
+          "description": "strict — Zod .parse() throws on response mismatch. warn — .safeParse() and console.warn. off — no runtime validation."
+        },
+        "emit_hybrid_spec_stubs": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, generate one <story>.hybrid.spec.ts per UI spec with ARRANGE(api) / ACT(ui) / ASSERT / TEARDOWN(api) regions left for the developer to fill."
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if":   { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+          "then": { "required": ["api_source", "api_base_url"] }
+        },
+        {
+          "if":   { "properties": { "api_source": { "const": "openapi" } }, "required": ["api_source"] },
+          "then": { "required": ["openapi_spec_path"] }
+        },
+        {
+          "if":   { "properties": { "api_source": { "const": "postman" } }, "required": ["api_source"] },
+          "then": { "required": ["postman_collection_path"] }
+        },
+        {
+          "if":   { "properties": { "api_source": { "const": "manual" } }, "required": ["api_source"] },
+          "then": { "properties": { "manual_endpoints": { "minItems": 1 } } }
+        },
+        {
+          "if":   { "properties": { "api_source": { "const": "curl" } }, "required": ["api_source"] },
+          "then": {
+            "anyOf": [
+              { "properties": { "curl_commands": { "minItems": 1 } } },
+              { "required": ["curl_source_file"], "properties": { "curl_source_file": { "type": "string", "minLength": 1 } } }
+            ]
+          }
+        }
+      ]
+    },
+    "self_healing": {
+      "type": ["object", "null"],
+      "default": null,
+      "description": "Optional locator self-healing stage. When omitted, null, or enabled=false, the orchestrator skips heal-tests.agent.md. When enabled, runs generated specs, isolates locator-driven failures, and repairs only locators/ files by re-inspecting the live accessibility tree via Playwright MCP before PR creation.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Master switch. When false, the entire self_healing object is ignored and the heal stage is skipped."
+        },
+        "heal_task": {
+          "type": "string",
+          "enum": ["heal-failures", "validate-version", "audit"],
+          "default": "heal-failures",
+          "description": "heal-failures — repair broken locators from a test run. validate-version — verify locators against an upgraded app version and preserve per-version selectors (old selector for old version, new selector for new version). audit — read-only health check of all locators (reports ok/broken/skipped, writes nothing)."
+        },
+        "app_version": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Semver of the app currently under test (e.g. 2.5.0). Required when heal_task is validate-version. Exposed to tests via APP_VERSION / config.appVersion."
+        },
+        "previous_app_version": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Last known-good semver whose selectors must remain valid (e.g. 2.4.3). Required when heal_task is validate-version. Old selectors are preserved under this version, never overwritten."
+        },
+        "heal_mode": {
+          "type": "string",
+          "enum": ["report-driven", "agent-run"],
+          "default": "report-driven",
+          "description": "report-driven — consume an existing Playwright JSON report from a manual/CI run (agent does not execute tests); returns a re-run command. agent-run — the agent executes the suite itself."
+        },
+        "results_report_path": {
+          "type": "string",
+          "default": "test-results/results.json",
+          "description": "Path to the Playwright JSON report produced by your run (report-driven mode). Generate with: npx playwright test --reporter=json > test-results/results.json"
+        },
+        "max_attempts_per_locator": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3,
+          "description": "Maximum re-inspection attempts per broken locator before reverting to the original value and flagging for manual verification."
+        },
+        "max_total_reruns": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 5,
+          "description": "Cap on full/partial suite re-executions across the whole healing loop (agent-run mode only)."
+        },
+        "heal_shared_locators": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, locators/shared-components.locators.ts may be healed in addition to per-page locator files."
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["semantic-first", "testid-first"],
+          "default": "semantic-first",
+          "description": "semantic-first — prefer getByRole/getByLabel/getByText/getByPlaceholder before data-testid. testid-first — prefer data-testid, then the semantic order."
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if":   { "properties": { "heal_task": { "const": "validate-version" } }, "required": ["heal_task"] },
+          "then": { "required": ["app_version", "previous_app_version"] }
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

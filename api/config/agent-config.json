@@ -1,0 +1,40 @@
+{
+  "orchestrator": "postman-testcase-orchestrator",
+  "sequence": [
+    "postman-fork-assets",
+    "postman-analyze-structure",
+    "postman-build-folder-from-ado",
+    "postman-create-pull-request"
+  ],
+  "skills": [
+    "postman-fork",
+    "postman-collection-analysis",
+    "ado-testcase-parser",
+    "postman-folder-generator",
+    "postman-pr-management"
+  ],
+  "requiredEnv": [
+    "POSTMAN_API_KEY",
+    "ADO_PAT",
+    "ADO_ORG",
+    "ADO_PROJECT"
+  ],
+  "requiredInput": [
+    "reviewer_postman_user_id",
+    "workspace_name",
+    "target_workspace_type",
+    "collection_id_or_url",
+    "environment_id_or_url",
+    "user_story_ado_link",
+    "test_cases_ado_link",
+    "run_mode",
+    "execution_confirmation",
+    "allow_ado_mutation",
+    "allow_probe_resources",
+    "ado_access_mode",
+    "environment_strategy",
+    "allow_environment_creation",
+    "ado_tool_calls_mode",
+    "ado_write_tools_disabled"
+  ]
+}

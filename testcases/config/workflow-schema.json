@@ -1,0 +1,229 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Test Case Authoring Workflow Input",
+  "description": "Inputs for the test-case creation workflow: intake a user story from ADO, generate Positive/Negative/Boundary test cases, export to Excel (default) and optionally publish to an ADO test plan/suite (execute mode only).",
+  "type": "object",
+  "required": ["story_source", "output_mode", "run_mode"],
+  "properties": {
+    "authoring_phase": {
+      "type": "string",
+      "enum": ["development", "enhancement"],
+      "default": "development",
+      "description": "development — initial authoring that produces the baseline test-case set. Exploration is optional: leave ui_exploration/mobile_exploration disabled while the story is still in development (story/specs/docs only), or enable them when the story is already deployed so the baseline is authored from story + live app in a single pass. enhancement — optional second step, used only when the baseline was authored before deployment: load the baseline, explore the live app (ui_exploration and/or mobile_exploration must be enabled), and reconcile it (Unchanged / Updated / New / Obsolete-Candidate) with UI evidence."
+    },
+    "enhancement": {
+      "type": ["object", "null"],
+      "default": null,
+      "description": "Phase 2 (authoring_phase=enhancement) settings.",
+      "properties": {
+        "baseline_cases_path": { "type": ["string", "null"], "default": null, "description": "Phase 1 generator output to enhance. When null, defaults to testcases/artifacts/testcases-<user_story_id>.json (required explicitly when user_story_id is null)." },
+        "baseline_workbook_path": { "type": ["string", "null"], "default": null, "description": "Phase 1 Excel workbook to update in place (Phase 2 never writes to ADO). When null, defaults to <excel.primary_output_dir>/<excel.output_file_basename>.xlsx, then the fallback dir. A timestamped backup copy is taken before the update." },
+        "environment_label": { "type": ["string", "null"], "default": null, "description": "Where the build was explored (e.g. 'QA2 - build 2026.09.27.3'). Recorded in the review artifact and change log." }
+      }
+    },
+    "story_source": {
+      "type": "string",
+      "enum": ["ado", "raw-file"],
+      "default": "ado",
+      "description": "ado — resolve and read a user story from Azure DevOps. raw-file — read requirements/scenarios from a local file (e.g. input.txt) with no ADO story lookup. ADO is still used for publishing when output_mode includes 'ado'."
+    },
+    "raw_input_file": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Path to a local file (e.g. .github/testcases/input.txt) containing acceptance criteria / scenarios / feature text. Required when story_source is raw-file. Supports .md, .txt, and .json (pre-structured requirements)."
+    },
+    "ado_org_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "default": null,
+      "description": "ADO organization URL, e.g. https://dev.azure.com/everi. Required when story_source is ado or output_mode includes 'ado'."
+    },
+    "ado_project": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "ADO project name, e.g. Loyalty Kiosk or PAAS. Required when story_source is ado or output_mode includes 'ado'."
+    },
+    "user_story_id": {
+      "type": ["integer", "null"],
+      "default": null,
+      "description": "Numeric ADO user story work item ID. Used when story_source is ado. Provide this OR user_story_title_keywords."
+    },
+    "user_story_title_keywords": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Title keywords to resolve the story when user_story_id is not known (story_source ado). Required when user_story_id is null and story_source is ado."
+    },
+    "source_repo_url": { "type": ["string", "null"], "default": null, "description": "Optional repo/doc URL containing spec/feature files." },
+    "source_wiki_url": { "type": ["string", "null"], "default": null, "description": "Optional full ADO wiki page URL for the story." },
+    "source_spec_root_path": { "type": ["string", "null"], "default": null, "description": "Optional repo-relative root path to SpecFlow/feature specs." },
+    "source_feature_files": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Optional list of .feature file names to align test cases to." },
+    "source_local_doc_paths": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Optional absolute local document paths (md/txt/docx/pdf/xlsx) to parse for AC, test data, constraints." },
+    "source_local_doc_types": { "type": "array", "items": { "type": "string", "enum": ["md", "txt", "docx", "pdf", "xlsx"] }, "default": [], "description": "Optional filter restricting which local file extensions are read." },
+
+    "title_prefix": {
+      "type": "string",
+      "default": "<product> - <module> - <ac/module> - <scenario>",
+      "description": "Test case title template. The trailing <scenario> segment is replaced per case. Example: 'PAAS - Admin API - AuthZ - <scenario>'."
+    },
+    "work_item_type": { "type": "string", "default": "Test Case", "description": "ADO work item type for generated rows." },
+    "default_state": { "type": "string", "default": "Design", "description": "Initial state for generated test cases." },
+    "area_path": { "type": ["string", "null"], "default": null, "description": "ADO Area Path. Use single backslashes in JSON is fine (no double-escaping needed here)." },
+    "iteration_path": { "type": ["string", "null"], "default": null, "description": "ADO Iteration Path (used only when publishing to ADO)." },
+    "assigned_to": { "type": ["string", "null"], "default": null, "description": "Assignee display name + email, e.g. 'Shanmugam, Aravind <aravind.shanmugam@everi.com>'." },
+    "default_priority": { "type": "integer", "minimum": 1, "maximum": 4, "default": 2, "description": "Default ADO priority for created test cases (publish mode) and the seed Priority for generated cases." },
+    "max_steps_per_case": { "type": "integer", "minimum": 1, "default": 15, "description": "Soft cap on steps per test case; longer flows are split." },
+
+    "test_levels": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["Component", "Integration", "System", "UAT"] },
+      "default": ["Component", "Integration", "System", "UAT"],
+      "description": "ISTQB test levels the generator should span. Each generated case is tagged with one Test Level from this set."
+    },
+    "techniques": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["EP", "BVA", "Decision Table", "State Transition", "Pairwise", "Error Guessing", "Exploratory"] },
+      "default": ["EP", "BVA", "Decision Table", "State Transition", "Pairwise", "Error Guessing", "Exploratory"],
+      "description": "Formal test-design techniques the generator may apply. Each case is tagged with the driving Technique."
+    },
+    "nfr_categories": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["Functional", "Security", "Performance", "Accessibility", "Compatibility", "Recovery", "API", "Database", "Usability"] },
+      "default": ["Functional", "Security", "Performance", "Accessibility", "Compatibility", "Recovery", "API", "Database", "Usability"],
+      "description": "Functional + non-functional categories to drive coverage toward. Each case is tagged with one Category."
+    },
+    "risk_model": {
+      "type": "object",
+      "default": { "factors": ["business_impact", "user_impact", "revenue_impact", "security_risk", "production_failure_probability"] },
+      "properties": {
+        "factors": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["business_impact", "user_impact", "revenue_impact", "security_risk", "production_failure_probability"] },
+          "default": ["business_impact", "user_impact", "revenue_impact", "security_risk", "production_failure_probability"]
+        }
+      },
+      "description": "Factors used to derive each case's Risk Rating (High/Medium/Low) and prioritize high-risk conditions first."
+    },
+    "include_rtm": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, the generator emits a Requirements Traceability Matrix, coverage/risk summaries, missing/ambiguous requirements, and exploratory ideas; excel-exporter renders them as summary worksheets."
+    },
+
+    "header_validation": {
+      "type": "object",
+      "default": { "enabled": true, "expected_header_name": "Content-Type", "expected_header_value": "application/json" },
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "expected_header_name": { "type": "string", "default": "Content-Type" },
+        "expected_header_value": { "type": "string", "default": "application/json" }
+      },
+      "description": "When a scenario asserts response headers, append 'AND verify response header: <name> = <value>' to the last-step Expected Result."
+    },
+
+    "ui_exploration": {
+      "type": ["object", "null"],
+      "default": null,
+      "description": "Optional live UI exploration pass. When enabled, the intake agent navigates the running application with Playwright MCP browser tools, observes the actual UI functionality (pages, controls, flows, validation messages, states), and feeds those observations into intake as additional evidence. Works alongside any story_source — typically raw-file + input.txt — so generated test cases reflect what the UI really does, not only the written requirements. Read-only: the exploration never submits forms or mutates application state.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false, "description": "Turn the live UI exploration pass on or off." },
+        "app_url": { "type": ["string", "null"], "format": "uri", "default": null, "description": "Base URL of the running app to explore. When null, the agent falls back to the first http(s) URL found in raw_input_file / input.txt." },
+        "app_auth_strategy": { "type": "string", "enum": ["none", "env-var", "cookie-file"], "default": "none", "description": "How to authenticate before exploring protected screens. none — anonymous/public screens. env-var — log in with APP_USERNAME / APP_PASSWORD. cookie-file — reuse a saved storage-state/cookie file." },
+        "target_paths": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Optional URL paths or feature areas to focus the exploration on (e.g. '/enroll', '/rewards'). When empty, the agent derives targets from the story/requirements." },
+        "max_pages": { "type": "integer", "minimum": 1, "default": 12, "description": "Soft cap on the number of distinct screens the exploration visits." }
+      }
+    },
+
+    "mobile_exploration": {
+      "type": ["object", "null"],
+      "default": null,
+      "description": "Optional live mobile-app exploration pass (the mobile counterpart of ui_exploration). When enabled, the intake agent drives the running app through an Appium session (local emulator/device or BrowserStack), observes the actual UI functionality (screens, controls, flows, validation, states) by reading the Appium page_source / accessibility hierarchy, and folds those observations into intake as additional evidence. Read-only: it never submits forms, completes purchases, or mutates application state. Appium has no MCP browser tool — capture the UI hierarchy via Appium page_source / accessibility tree or Appium Inspector.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false, "description": "Turn the live mobile-app exploration pass on or off." },
+        "platform": { "type": "string", "enum": ["android", "ios"], "default": "android", "description": "Target mobile platform. android → UiAutomator2. ios → XCUITest." },
+        "execution_target": { "type": "string", "enum": ["local", "browserstack"], "default": "local", "description": "Where the Appium session runs. local — a local Appium server driving an emulator/AVD, physical device, or iOS simulator. browserstack — BrowserStack App Automate cloud device." },
+        "appium_server_url": { "type": "string", "format": "uri", "default": "http://127.0.0.1:4723", "description": "Base URL of the local Appium endpoint (execution_target=local). Ignored for browserstack in favour of browserstack.hub_url." },
+        "app_auth_strategy": { "type": "string", "enum": ["none", "env-var"], "default": "none", "description": "How to authenticate before exploring protected screens. none — anonymous. env-var — log in with APP_USERNAME / APP_PASSWORD." },
+        "app_package": { "type": ["string", "null"], "default": null, "description": "Android application package (local + android). Provide app_package (+ app_activity) or app_path." },
+        "app_activity": { "type": ["string", "null"], "default": null, "description": "Android launch activity (local + android)." },
+        "bundle_id": { "type": ["string", "null"], "default": null, "description": "iOS bundle identifier (local + ios). Provide bundle_id or app_path." },
+        "app_path": { "type": ["string", "null"], "default": null, "description": "Local path to an .apk/.ipa to install for the session (local)." },
+        "avd": { "type": ["string", "null"], "default": null, "description": "Android Studio AVD name to auto-launch (local + android). Optional when the emulator/device is already running." },
+        "browserstack": {
+          "type": ["object", "null"],
+          "default": null,
+          "description": "BrowserStack App Automate settings. Required when execution_target=browserstack. Credentials come from BROWSERSTACK_USERNAME / BROWSERSTACK_ACCESS_KEY env vars.",
+          "properties": {
+            "hub_url": { "type": "string", "default": "https://hub-cloud.browserstack.com/wd/hub", "description": "BrowserStack Appium hub URL." },
+            "app_id": { "type": ["string", "null"], "default": null, "description": "BrowserStack-hosted app identifier (bs://<hash>)." },
+            "device": { "type": ["string", "null"], "default": null, "description": "BrowserStack device name (e.g. 'Google Pixel 8')." },
+            "os_version": { "type": ["string", "null"], "default": null, "description": "Device OS version (e.g. '14', '17')." }
+          }
+        },
+        "target_screens": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Optional screen names / feature areas to focus the exploration on. When empty, the agent derives targets from the story/requirements." },
+        "max_screens": { "type": "integer", "minimum": 1, "default": 12, "description": "Soft cap on the number of distinct screens the exploration visits." }
+      }
+    },
+
+    "output_mode": {
+      "type": "string",
+      "enum": ["excel", "ado", "both"],
+      "default": "excel",
+      "description": "excel — export an .xlsx via ImportExcel (default, no ADO writes). ado — publish test cases into an ADO test plan/suite (requires run_mode=execute + APPROVED_EXECUTE). both — export Excel AND publish."
+    },
+    "excel": {
+      "type": "object",
+      "default": {},
+      "properties": {
+        "worksheet": { "type": "string", "default": "Test Cases" },
+        "primary_output_dir": { "type": ["string", "null"], "default": null, "description": "Preferred output folder. Falls back to fallback_output_dir when unavailable." },
+        "fallback_output_dir": { "type": ["string", "null"], "default": null, "description": "Fallback output folder (e.g. Downloads)." },
+        "output_file_basename": { "type": ["string", "null"], "default": null, "description": "File name without extension." }
+      }
+    },
+    "ado_publish": {
+      "type": "object",
+      "default": {},
+      "properties": {
+        "target_test_plan_id": { "type": ["integer", "null"], "default": null, "description": "Existing ADO test plan ID. Required when output_mode includes 'ado'." },
+        "target_test_suite_id": { "type": ["integer", "null"], "default": null, "description": "Existing suite ID. When null, the agent proposes a suite name and creates it after approval." }
+      }
+    },
+
+    "run_mode": {
+      "type": "string",
+      "enum": ["dry-run", "execute"],
+      "default": "dry-run",
+      "description": "dry-run — generate the review artifact + Excel only, no ADO writes. execute — permit ADO test-case publishing (also needs execution_confirmation)."
+    },
+    "execution_confirmation": {
+      "type": ["string", "null"],
+      "enum": ["APPROVED_EXECUTE", null],
+      "default": null,
+      "description": "Must equal APPROVED_EXECUTE to authorize ADO writes when output_mode includes 'ado'."
+    },
+    "ado_access_mode": { "type": "string", "const": "read-only-plus-testcase-write", "default": "read-only-plus-testcase-write" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "story_source": { "const": "ado" } }, "required": ["story_source"] },
+      "then": {
+        "required": ["ado_org_url", "ado_project"],
+        "anyOf": [
+          { "required": ["user_story_id"], "properties": { "user_story_id": { "type": "integer" } } },
+          { "required": ["user_story_title_keywords"], "properties": { "user_story_title_keywords": { "type": "string", "minLength": 1 } } }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "story_source": { "const": "raw-file" } }, "required": ["story_source"] },
+      "then": { "required": ["raw_input_file"], "properties": { "raw_input_file": { "type": "string", "minLength": 1 } } }
+    },
+    {
+      "if": { "properties": { "output_mode": { "enum": ["ado", "both"] } } },
+      "then": {
+        "required": ["ado_org_url", "ado_project"],
+        "properties": { "ado_publish": { "required": ["target_test_plan_id"] } }
+      }
+    }
+  ]
+}

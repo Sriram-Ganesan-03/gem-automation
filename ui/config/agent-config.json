@@ -1,0 +1,44 @@
+{
+  "orchestrator": "ui-testcase-orchestrator",
+  "sequence": [
+    "ui-analyze-app",
+    "ui-build-tests-from-ado",
+    "ui-create-ado-pr"
+  ],
+  "skills": [
+    "ado-testcase-parser",
+    "playwright-app-analysis",
+    "playwright-test-generator",
+    "ui-ado-pr-management"
+  ],
+  "requiredEnv": [
+    "APP_BASE_URL",
+    "ADO_PAT",
+    "ADO_ORG",
+    "ADO_PROJECT"
+  ],
+  "optionalEnv": [
+    "APP_USERNAME",
+    "APP_PASSWORD"
+  ],
+  "requiredInput": [
+    "app_base_url",
+    "app_auth_strategy",
+    "test_output_path",
+    "user_story_ado_link",
+    "test_cases_ado_link",
+    "reviewer_ado_user_id",
+    "target_repo",
+    "target_branch",
+    "run_mode",
+    "execution_confirmation",
+    "allow_ado_mutation",
+    "allow_probe_resources",
+    "ado_access_mode",
+    "ado_tool_calls_mode",
+    "ado_write_tools_disabled"
+  ],
+  "optionalInput": [
+    "target_local_path"
+  ]
+}

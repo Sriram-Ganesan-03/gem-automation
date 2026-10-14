@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Postman Test Case Conversion Workflow",
+  "type": "object",
+  "required": [
+    "reviewer_postman_user_id",
+    "workspace_name",
+    "collection_id_or_url",
+    "environment_id_or_url",
+    "user_story_ado_link",
+    "test_cases_ado_link"
+  ],
+  "properties": {
+    "reviewer_postman_user_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspace_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_workspace_type": {
+      "type": "string",
+      "const": "team",
+      "default": "team"
+    },
+    "collection_id_or_url": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment_id_or_url": {
+      "type": "string",
+      "minLength": 1
+    },
+    "user_story_ado_link": {
+      "type": "string",
+      "format": "uri"
+    },
+    "test_cases_ado_link": {
+      "type": "string",
+      "format": "uri"
+    },
+    "folder_name_override": {
+      "type": ["string", "null"]
+    },
+    "run_mode": {
+      "type": "string",
+      "enum": ["dry-run", "execute"],
+      "default": "dry-run"
+    },
+    "execution_confirmation": {
+      "type": ["string", "null"],
+      "enum": ["APPROVED_EXECUTE", null],
+      "default": null
+    },
+    "allow_ado_mutation": {
+      "type": "boolean",
+      "const": false,
+      "default": false
+    },
+    "allow_probe_resources": {
+      "type": "boolean",
+      "const": false,
+      "default": false
+    },
+    "ado_access_mode": {
+      "type": "string",
+      "const": "read-only",
+      "default": "read-only"
+    },
+    "environment_strategy": {
+      "type": "string",
+      "const": "use-input-existing",
+      "default": "use-input-existing"
+    },
+    "allow_environment_creation": {
+      "type": "boolean",
+      "const": false,
+      "default": false
+    },
+    "ado_tool_calls_mode": {
+      "type": "string",
+      "const": "read-wrapper-only",
+      "default": "read-wrapper-only"
+    },
+    "ado_write_tools_disabled": {
+      "type": "boolean",
+      "const": true,
+      "default": true
+    }
+  },
+  "additionalProperties": false
+}

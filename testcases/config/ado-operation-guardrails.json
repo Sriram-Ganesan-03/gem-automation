@@ -1,0 +1,48 @@
+{
+  "failClosed": true,
+  "mode": "read-only-plus-testcase-write",
+  "server": "@azure-devops/mcp (Microsoft)",
+  "auth": "pat (via ../../ui/scripts/ado-mcp-launcher.ps1 --authentication pat)",
+  "note": "Scoped guardrails for the test-case authoring workflow. Reads cover story intake (work item, comments, attachments, wiki, repo specs). The ONLY writes permitted are ADO Test Plan test-case operations, and only in execute mode with execution_confirmation=APPROVED_EXECUTE. All work-item create/update/comment and PR writes remain blocked. Excel export performs NO ADO writes.",
+  "allowedReadOperations": [
+    "mcp_ado_wit_get_work_item",
+    "mcp_ado_wit_get_work_items_batch_by_ids",
+    "mcp_ado_wit_query_by_wiql",
+    "mcp_ado_search_workitem",
+    "mcp_ado_wit_list_work_item_comments",
+    "mcp_ado_wit_get_work_item_attachment",
+    "mcp_ado_wiki_list_wikis",
+    "mcp_ado_wiki_list_pages",
+    "mcp_ado_wiki_get_page_content",
+    "mcp_ado_search_wiki",
+    "mcp_ado_search_code",
+    "mcp_ado_repo_get_repo_by_name_or_id",
+    "mcp_ado_repo_get_file_content",
+    "mcp_ado_testplan_list_test_plans",
+    "mcp_ado_testplan_list_test_suites",
+    "mcp_ado_testplan_list_test_cases"
+  ],
+  "allowedWriteOperationsInExecuteMode": [
+    "mcp_ado_testplan_create_test_suite",
+    "mcp_ado_testplan_create_test_case",
+    "mcp_ado_testplan_update_test_case_steps",
+    "mcp_ado_testplan_add_test_cases_to_suite"
+  ],
+  "blockedWriteOperations": [
+    "mcp_ado_wit_add_artifact_link",
+    "mcp_ado_wit_add_child_work_items",
+    "mcp_ado_wit_add_work_item_comment",
+    "mcp_ado_wit_create_work_item",
+    "mcp_ado_wit_update_work_item",
+    "mcp_ado_wit_update_work_item_comment",
+    "mcp_ado_wit_update_work_items_batch",
+    "mcp_ado_wit_work_item_unlink",
+    "mcp_ado_wit_work_items_link",
+    "mcp_ado_wit_link_work_item_to_pull_request",
+    "mcp_ado_repo_create_branch",
+    "mcp_ado_repo_create_pull_request",
+    "mcp_ado_repo_update_pull_request",
+    "mcp_ado_repo_create_pull_request_thread",
+    "mcp_ado_wiki_create_or_update_page"
+  ]
+}

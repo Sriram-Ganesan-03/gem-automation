@@ -1,0 +1,32 @@
+{
+  "failClosed": true,
+  "mode": "read-only",
+  "server": "@azure-devops/mcp (Microsoft)",
+  "auth": "pat (via ado-mcp-launcher.ps1 --authentication pat)",
+  "note": "Tool names target the Microsoft @azure-devops/mcp server launched with PAT auth. Test Plan tools are available, so ADO test-case fetching works. The API workflow performs ADO reads only; all ADO writes are blocked (PRs are opened in Postman, not ADO).",
+  "allowedReadOperations": [
+    "mcp_ado_wit_get_work_item",
+    "mcp_ado_wit_get_work_items_batch_by_ids",
+    "mcp_ado_wit_query_by_wiql",
+    "mcp_ado_search_workitem",
+    "mcp_ado_testplan_list_test_cases",
+    "mcp_ado_testplan_list_test_plans",
+    "mcp_ado_testplan_list_test_suites"
+  ],
+  "blockedWriteOperations": [
+    "mcp_ado_wit_add_artifact_link",
+    "mcp_ado_wit_add_child_work_items",
+    "mcp_ado_wit_add_work_item_comment",
+    "mcp_ado_wit_create_work_item",
+    "mcp_ado_wit_update_work_item",
+    "mcp_ado_wit_update_work_item_comment",
+    "mcp_ado_wit_update_work_items_batch",
+    "mcp_ado_wit_work_item_unlink",
+    "mcp_ado_wit_work_items_link",
+    "mcp_ado_testplan_add_test_cases_to_suite",
+    "mcp_ado_testplan_create_test_case",
+    "mcp_ado_testplan_create_test_plan",
+    "mcp_ado_testplan_create_test_suite",
+    "mcp_ado_testplan_update_test_case_steps"
+  ]
+}

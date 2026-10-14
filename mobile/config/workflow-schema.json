@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Robot Framework + Appium Mobile Test Generation Workflow",
+  "type": "object",
+  "required": [
+    "platform",
+    "appium_server_url",
+    "app_auth_strategy",
+    "test_output_path",
+    "input_source"
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "input_source": { "const": "ado" } }, "required": ["input_source"] },
+      "then": { "required": ["user_story_ado_link", "test_cases_ado_link"] },
+      "else": { "required": ["raw_input_file"] }
+    },
+    {
+      "if": { "properties": { "platform": { "const": "android" }, "execution_target": { "const": "local" } }, "required": ["platform"] },
+      "then": {
+        "anyOf": [
+          { "required": ["app_package"] },
+          { "required": ["app_path"] }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "platform": { "const": "ios" }, "execution_target": { "const": "local" } }, "required": ["platform"] },
+      "then": {
+        "anyOf": [
+          { "required": ["bundle_id"] },
+          { "required": ["app_path"] }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "robot_project_mode": { "const": "existing" } }, "required": ["robot_project_mode"] },
+      "then": { "required": ["robot_config_path"] }
+    },
+    {
+      "if": { "properties": { "execution_target": { "const": "browserstack" } }, "required": ["execution_target"] },
+      "then": {
+        "properties": {
+          "browserstack": {
+            "type": "object",
+            "required": ["device", "os_version"],
+            "anyOf": [
+              { "required": ["app_id"] },
+              { "required": ["app_path_upload"] }
+            ]
+          }
+        },
+        "required": ["browserstack"]
+      }
+    }
+  ],
+  "properties": {
+    "platform": {
+      "type": "string",
+      "enum": ["android", "ios"],
+      "description": "Target mobile platform. android → UiAutomator2. ios → XCUITest."
+    },
+    "execution_target": {
+      "type": "string",
+      "enum": ["local", "browserstack"],
+      "default": "local",
+      "description": "Where the Appium session runs. local — a local Appium server driving an Android Studio emulator/AVD, a physical device, or an iOS simulator. browserstack — BrowserStack App Automate cloud device farm (session opens against the BrowserStack hub with bstack:options capabilities)."
+    },
+    "appium_server_url": {
+      "type": "string",
+      "format": "uri",
+      "minLength": 1,
+      "default": "http://127.0.0.1:4723",
+      "description": "Base URL of the Appium endpoint. For execution_target=local this is the local Appium server (e.g. http://127.0.0.1:4723). For execution_target=browserstack it is ignored in favour of browserstack.hub_url."
+    },
+    "avd": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Android Studio AVD (emulator) name to auto-launch via Appium (Appium 'avd' capability, e.g. Pixel_8_API_34). Only used when execution_target=local and platform=android. Optional — omit when the emulator/device is already running."
+    },
+    "browserstack": {
+      "type": ["object", "null"],
+      "default": null,
+      "description": "BrowserStack App Automate settings. Required when execution_target=browserstack. Credentials are read from BROWSERSTACK_USERNAME / BROWSERSTACK_ACCESS_KEY env vars when username/access_key are null.",
+      "properties": {
+        "username": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "BrowserStack username. SECURITY: prefer leaving null and supplying BROWSERSTACK_USERNAME via env var."
+        },
+        "access_key": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "BrowserStack access key. SECURITY: prefer leaving null and supplying BROWSERSTACK_ACCESS_KEY via env var. Never commit."
+        },
+        "hub_url": {
+          "type": "string",
+          "default": "https://hub-cloud.browserstack.com/wd/hub",
+          "description": "BrowserStack Appium hub URL."
+        },
+        "app_id": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "BrowserStack-hosted app identifier (bs://<hash>) returned by the app-upload REST API. Use this or app_path_upload."
+        },
+        "app_path_upload": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Local path to a .apk/.ipa to upload to BrowserStack before the run (via the app-upload REST API), producing a bs:// app_id. Use this or app_id."
+        },
+        "device": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "BrowserStack device name (e.g. 'Google Pixel 8', 'iPhone 15')."
+        },
+        "os_version": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Device OS version on BrowserStack (e.g. '14', '17')."
+        },
+        "project_name": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "BrowserStack project name grouping (bstack:options projectName)."
+        },
+        "build_name": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "BrowserStack build name grouping (bstack:options buildName)."
+        }
+      },
+      "additionalProperties": true
+    },
+    "device_name": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Target device / emulator / simulator name (e.g. emulator-5554, iPhone 15). Written to .env as DEVICE_NAME."
+    },
+    "platform_version": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "OS version of the target device (e.g. 14 for Android, 17.4 for iOS)."
+    },
+    "automation_name": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Appium automation engine. Defaults to UiAutomator2 (Android) / XCUITest (iOS) when null."
+    },
+    "app_package": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Android application package id (e.g. com.everi.loyalty.kiosk). Required for android unless app_path is supplied."
+    },
+    "app_activity": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Android launch activity (e.g. .MainActivity). Optional when app_package is set."
+    },
+    "bundle_id": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "iOS bundle identifier (e.g. com.everi.loyalty.kiosk). Required for ios unless app_path is supplied."
+    },
+    "app_path": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Path or URL to the app binary (.apk for Android, .app/.ipa for iOS). Used to install the app before the session."
+    },
+    "app_version": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Semver of the app build under test (e.g. 2.5.0). Exposed to tests via APP_VERSION / ${APP_VERSION}; drives version-scoped locator resolution."
+    },
+    "app_username": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "In-app login username. Used when app_auth_strategy is env-var. Preflight writes this to .env. Never commit — keep workflow-input.current.json gitignored."
+    },
+    "app_password": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "In-app login password. Used when app_auth_strategy is env-var. Preflight writes this to .env. Never commit."
+    },
+    "app_auth_strategy": {
+      "type": "string",
+      "enum": ["none", "env-var"],
+      "default": "none",
+      "description": "How the agent authenticates before analysing protected screens. none — app requires no login. env-var — log in with APP_USERNAME / APP_PASSWORD."
+    },
+    "test_output_path": {
+      "type": "string",
+      "minLength": 1,
+      "default": "mobile-tests",
+      "description": "Folder (under the project root) where Robot Framework POM files are written. Overridden by the layout detected in an existing robot.yaml / project when a structure is found (Step 0)."
+    },
+    "report_output_path": {
+      "type": "string",
+      "minLength": 1,
+      "default": "results",
+      "description": "Folder where Robot Framework output.xml / log.html / report.html are written after execution; ignored when robot_project_mode is existing."
+    },
+    "screenshot_mode": {
+      "type": "string",
+      "enum": ["all", "on-failure", "none"],
+      "default": "on-failure",
+      "description": "all — Capture Page Screenshot after every step. on-failure — AppiumLibrary captures a screenshot only on failure (default). none — no screenshots."
+    },
+    "log_level": {
+      "type": "string",
+      "enum": ["step", "action", "none"],
+      "default": "step",
+      "description": "step — Log at start/end of each test step. action — Log inside every page-object keyword as well. none — no generated logging."
+    },
+    "robot_project_mode": {
+      "type": "string",
+      "enum": ["new", "existing"],
+      "default": "new",
+      "description": "new — generate robot.yaml / requirements.txt as part of the PR. existing — target repo already has a Robot Framework project; skip config generation and read the layout from the existing project."
+    },
+    "robot_config_path": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Relative path to robot.yaml (or the tests root) inside target_repo. Required when robot_project_mode is existing."
+    },
+    "input_source": {
+      "type": "string",
+      "enum": ["ado", "raw-file"],
+      "default": "ado",
+      "description": "ado — fetch story title and test cases from Azure DevOps. raw-file — read test scenarios from a local file (markdown, plain text, or JSON); no ADO fetch in Phase 1."
+    },
+    "raw_input_file": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Path to the raw input file containing test scenarios. Required when input_source is raw-file. Supports .md, .txt, .json, and a Test Cases workflow output (.xlsx / testcase-generator .json, auto-converted via testcase-excel-to-rawinput). Path is relative to the workspace root."
+    },
+    "user_story_ado_link": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "Full ADO URL for the user story work item. Use this or user_story_id when input_source is ado."
+    },
+    "user_story_id": {
+      "type": ["integer", "null"],
+      "default": null,
+      "description": "Numeric ADO work item ID for the user story (e.g. 1326051)."
+    },
+    "test_cases_ado_link": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "Full ADO test plan/suite URL. Use this or the test_plan_id + test_suite_id pair when input_source is ado."
+    },
+    "test_plan_id": {
+      "type": ["integer", "null"],
+      "default": null,
+      "description": "Numeric ADO test plan ID (e.g. 432931)."
+    },
+    "test_suite_id": {
+      "type": ["integer", "null"],
+      "default": null,
+      "description": "Numeric ADO test suite ID (e.g. 1329228)."
+    },
+    "reviewer_ado_user_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_repo": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_branch": {
+      "type": "string",
+      "minLength": 1,
+      "default": "main"
+    },
+    "target_local_path": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "OPTIONAL OVERRIDE. The .github folder always lives inside the target project, so the project root is auto-derived as the repository/workspace root that contains .github; generated files are written DIRECTLY there by default (resources/ and tests/ under the detected test_output_path, and in 'new' mode robot.yaml at the project root). The local project is the primary output target; mobile/artifacts/ retains a mirror copy only. Runs in both dry-run and execute modes and is independent of ADO PR creation. Set this only to point at a DIFFERENT directory."
+    },
+    "spec_name_override": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Override the .robot suite file name (kebab-case, without .robot); defaults to the story title."
+    },
+    "target_screens": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Screen names / feature areas to restrict analysis to (e.g. ['Login', 'Dashboard']); empty means analyse all reachable screens derived from the scenarios."
+    },
+    "run_mode": {
+      "type": "string",
+      "enum": ["dry-run", "execute"],
+      "default": "dry-run"
+    },
+    "execution_confirmation": {
+      "type": ["string", "null"],
+      "enum": ["APPROVED_EXECUTE", null],
+      "default": null
+    },
+    "allow_ado_mutation": { "type": "boolean", "const": false, "default": false },
+    "allow_probe_resources": { "type": "boolean", "const": false, "default": false },
+    "ado_access_mode": { "type": "string", "const": "read-only", "default": "read-only" },
+    "ado_tool_calls_mode": { "type": "string", "const": "read-wrapper-only", "default": "read-wrapper-only" },
+    "ado_write_tools_disabled": { "type": "boolean", "const": true, "default": true },
+    "ado_pat": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Azure DevOps Personal Access Token. SECURITY: do NOT store the token here — keep this null and supply it via the ADO_PAT environment variable, which preflight reads as a fallback. Required (via env var or this field) when input_source is ado or run_mode is execute."
+    },
+    "ado_org": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Azure DevOps organization name (e.g. everi)."
+    },
+    "ado_project": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Azure DevOps project name (e.g. Loyalty Kiosk)."
+    },
+    "self_healing": {
+      "type": ["object", "null"],
+      "default": null,
+      "description": "Optional locator self-healing stage. When omitted, null, or enabled=false, the orchestrator skips heal-tests.agent.md. When enabled, consumes a Robot Framework output.xml, isolates locator-driven failures, and repairs only resources/locators/*.resource files by re-inspecting the live app via Appium before PR creation.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Master switch. When false, the entire self_healing object is ignored and the heal stage is skipped."
+        },
+        "heal_task": {
+          "type": "string",
+          "enum": ["heal-failures", "validate-version", "audit"],
+          "default": "heal-failures",
+          "description": "heal-failures — repair broken locators from a test run. validate-version — verify locators against an upgraded app version and preserve per-version selectors. audit — read-only health check of all locators (reports ok/broken/skipped, writes nothing)."
+        },
+        "app_version": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Semver of the app currently under test (e.g. 2.5.0). Required when heal_task is validate-version. Exposed to tests via APP_VERSION / ${APP_VERSION}."
+        },
+        "previous_app_version": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Last known-good semver whose selectors must remain valid (e.g. 2.4.3). Required when heal_task is validate-version."
+        },
+        "heal_mode": {
+          "type": "string",
+          "enum": ["report-driven", "agent-run"],
+          "default": "report-driven",
+          "description": "report-driven — consume an existing Robot Framework output.xml (agent does not execute tests); returns a re-run command. agent-run — the agent executes the suite itself."
+        },
+        "results_report_path": {
+          "type": "string",
+          "default": "results/output.xml",
+          "description": "Path to the Robot Framework output.xml produced by your run (report-driven mode). Generate with: robot --outputdir results mobile-tests/tests"
+        },
+        "max_attempts_per_locator": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3,
+          "description": "Maximum re-inspection attempts per broken locator before reverting and flagging for manual verification."
+        },
+        "max_total_reruns": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 5,
+          "description": "Cap on full/partial suite re-executions across the whole healing loop (agent-run mode only)."
+        },
+        "heal_shared_locators": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, resources/locators/shared-components.locators.resource may be healed in addition to per-screen locator files."
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["accessibility-first", "id-first"],
+          "default": "accessibility-first",
+          "description": "accessibility-first — prefer accessibility_id / content-desc / label before id/xpath. id-first — prefer resource-id / name, then accessibility, then xpath."
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "heal_task": { "const": "validate-version" } }, "required": ["heal_task"] },
+          "then": { "required": ["app_version", "previous_app_version"] }
+        }
+      ]
+    }
+  },
+  "additionalProperties": true
+}

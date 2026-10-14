@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+
+ui/env
+**/node_modules/
+**/artifacts/
+**/playwright-report/
+**/test-results/
+**/workflow-input.current.json
+
+.vscode/tasks.json
+console.txt
+testcases/input.txt
+ui/input.txt

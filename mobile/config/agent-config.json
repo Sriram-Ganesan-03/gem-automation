@@ -1,0 +1,67 @@
+{
+  "orchestrator": "mobile-testcase-orchestrator",
+  "sequence": [
+    "mobile-analyze-app",
+    "mobile-build-tests-from-ado",
+    "mobile-create-ado-pr"
+  ],
+  "optionalSequence": [
+    "mobile-heal-tests"
+  ],
+  "skills": [
+    "ado-testcase-parser",
+    "raw-input-parser",
+    "testcase-excel-to-rawinput",
+    "appium-app-analysis",
+    "robot-test-generator",
+    "mobile-ado-pr-management"
+  ],
+  "requiredEnv": [
+    "APPIUM_SERVER_URL",
+    "ADO_PAT",
+    "ADO_ORG",
+    "ADO_PROJECT"
+  ],
+  "optionalEnv": [
+    "APP_USERNAME",
+    "APP_PASSWORD",
+    "EXECUTION_TARGET",
+    "DEVICE_NAME",
+    "AVD",
+    "PLATFORM_VERSION",
+    "AUTOMATION_NAME",
+    "APP_PACKAGE",
+    "APP_ACTIVITY",
+    "BUNDLE_ID",
+    "APP_PATH",
+    "APP_VERSION",
+    "BROWSERSTACK_USERNAME",
+    "BROWSERSTACK_ACCESS_KEY",
+    "BROWSERSTACK_HUB_URL",
+    "BS_APP_ID",
+    "BS_DEVICE",
+    "BS_OS_VERSION",
+    "BS_PROJECT_NAME",
+    "BS_BUILD_NAME"
+  ],
+  "requiredInput": [
+    "platform",
+    "execution_target",
+    "appium_server_url",
+    "app_auth_strategy",
+    "test_output_path",
+    "input_source",
+    "run_mode",
+    "allow_ado_mutation",
+    "allow_probe_resources",
+    "ado_access_mode",
+    "ado_tool_calls_mode",
+    "ado_write_tools_disabled"
+  ],
+  "optionalInput": [
+    "target_local_path",
+    "browserstack",
+    "avd",
+    "self_healing"
+  ]
+}

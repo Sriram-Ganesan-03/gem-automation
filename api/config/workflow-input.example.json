@@ -1,0 +1,10 @@
+{
+  "reviewer_postman_user_id": "postman-user-id",
+  "workspace_name": "your-postman-workspace",
+  "collection_id_or_url": "postman-collection-id-or-url",
+  "environment_id_or_url": "postman-environment-id-or-url",
+  "user_story_ado_link": "https://dev.azure.com/everi/Loyalty%20Kiosk/_workitems/edit/1326051",
+  "test_cases_ado_link": "https://dev.azure.com/everi/Loyalty%20Kiosk/_testPlans/execute?planId=432931&suiteId=1329228",
+  "folder_name_override": null,
+  "run_mode": "execute"
+}
