@@ -10,6 +10,7 @@ export const config = {
   baseUrl: requireEnv('APP_BASE_URL'),
   username: requireEnv('APP_USERNAME'),
   password: requireEnv('APP_PASSWORD'),
+  appVersion: process.env.APP_VERSION ?? '0.0.0',
   tenantSearchTerm: "ATM A01",
   tenantIdSuffix: "136",
   namePrefix: "TestTenant UAT",
